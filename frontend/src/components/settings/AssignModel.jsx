@@ -430,15 +430,15 @@ export default function AssignModel() {
                 "
               >
                 <option>
-                  hours
+                  hrs
                 </option>
 
                 <option>
-                  minutes
+                  min
                 </option>
 
                 <option>
-                  seconds
+                  sec
                 </option>
               </select>
             </div>

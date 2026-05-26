@@ -1,4 +1,7 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   Play,
@@ -14,12 +17,19 @@ import EndBatchModal from "../modals/EndBatchModal";
 export default function Topbar() {
   const {
     batchStarted = false,
+    hydrateCurrentBatch,
   } = useAppStore();
 
   const [openStart, setOpenStart] =
     useState(false);
 const [openEnd, setOpenEnd] =
   useState(false);
+
+  useEffect(() => {
+    hydrateCurrentBatch().catch(
+      () => {}
+    );
+  }, [hydrateCurrentBatch]);
   return (
     <>
       <header
@@ -132,11 +142,12 @@ const [openEnd, setOpenEnd] =
             shrink-0
           "
         >
-          {/* START BATCH */}
+          {/* START/END BATCH */}
           <button
-            disabled={batchStarted}
             onClick={() =>
-              setOpenStart(true)
+              batchStarted
+                ? setOpenEnd(true)
+                : setOpenStart(true)
             }
             className={`
               h-11
@@ -153,17 +164,19 @@ const [openEnd, setOpenEnd] =
               shadow-lg
               transition-all
               duration-300
-              disabled:opacity-40
-              disabled:cursor-not-allowed
 
               ${
                 batchStarted
-                  ? "bg-green-300"
+                  ? "bg-[#dc2626] hover:bg-[#b91c1c]"
                   : "bg-[#16a34a] hover:bg-[#15803d]"
               }
             `}
           >
-            <Play size={17} />
+            {batchStarted ? (
+              <Square size={17} />
+            ) : (
+              <Play size={17} />
+            )}
 
             <span
               className="
@@ -173,52 +186,9 @@ const [openEnd, setOpenEnd] =
                 md:text-base
               "
             >
-              Start Batch
-            </span>
-          </button>
-
-          {/* END BATCH */}
-          <button
-            disabled={!batchStarted}
-        onClick={() =>
-  setOpenEnd(true)
-}
-            className={`
-              h-11
-              md:h-12
-              px-3
-              md:px-5
-              rounded-2xl
-              text-white
-              flex
-              items-center
-              justify-center
-              gap-2
-              font-semibold
-              shadow-lg
-              transition-all
-              duration-300
-              disabled:opacity-40
-              disabled:cursor-not-allowed
-
-              ${
-                !batchStarted
-                  ? "bg-red-300"
-                  : "bg-[#dc2626] hover:bg-[#b91c1c]"
-              }
-            `}
-          >
-            <Square size={17} />
-
-            <span
-              className="
-                hidden
-                sm:block
-                text-sm
-                md:text-base
-              "
-            >
-              End Batch
+              {batchStarted
+                ? "End Batch"
+                : "Start Batch"}
             </span>
           </button>
         </div>

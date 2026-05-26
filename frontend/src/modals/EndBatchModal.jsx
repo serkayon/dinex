@@ -102,7 +102,7 @@ export default function EndBatchModal({
     };
 
   const handleEndBatch =
-    () => {
+    async () => {
       if (
         remainingPending >
         0
@@ -113,13 +113,18 @@ export default function EndBatchModal({
         return;
       }
 
-      endBatch();
-
-      toast.success(
-        "Batch Ended Successfully"
-      );
-
-      onClose();
+      try {
+        await endBatch();
+        toast.success(
+          "Batch Ended Successfully"
+        );
+        onClose();
+      } catch (error) {
+        toast.error(
+          error.message ||
+            "Failed to end batch"
+        );
+      }
     };
 
   return (

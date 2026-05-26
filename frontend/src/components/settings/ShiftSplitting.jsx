@@ -127,6 +127,8 @@ export default function ShiftSplitting() {
   const [form, setForm] = useState({
     type: "",
     duration: "",
+    breakFrom: "",
+    breakTo: "",
   });
 
   const toRailwayTime = (
@@ -144,6 +146,31 @@ export default function ShiftSplitting() {
       normalized % 60;
     return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   };
+
+  const railwayToMinutes = (
+    timeValue
+  ) => {
+    const [hours, minutes] =
+      timeValue
+        .split(":")
+        .map(Number);
+    return (
+      hours * 60 + minutes
+    );
+  };
+
+  const minutesBetween = (
+    startTime,
+    endTime
+  ) =>
+    (railwayToMinutes(
+      endTime
+    ) -
+      railwayToMinutes(
+        startTime
+      ) +
+      24 * 60) %
+    (24 * 60);
 
   const fetchShiftBreaks =
     useCallback(async () => {
@@ -263,6 +290,29 @@ export default function ShiftSplitting() {
     return rows;
   }, [activeShift, shiftData]);
 
+  const breakTimeOptions =
+    useMemo(() => {
+      if (!selectedSlot) {
+        return [];
+      }
+
+      const options = [];
+      for (
+        let minuteOffset = 0;
+        minuteOffset <=
+        selectedSlot.totalMinutes;
+        minuteOffset += 5
+      ) {
+        options.push(
+          toRailwayTime(
+            selectedSlot.start +
+              minuteOffset
+          )
+        );
+      }
+      return options;
+    }, [selectedSlot]);
+
   /* =========================
       FORMAT TIME
   ========================= */
@@ -308,6 +358,8 @@ export default function ShiftSplitting() {
       setForm({
         type: "",
         duration: "",
+        breakFrom: "",
+        breakTo: "",
       });
     };
 
@@ -331,6 +383,20 @@ export default function ShiftSplitting() {
         return;
       }
 
+      if (!form.breakFrom) {
+        toast.error(
+          "Select break from time"
+        );
+        return;
+      }
+
+      if (!form.breakTo) {
+        toast.error(
+          "Select break to time"
+        );
+        return;
+      }
+
       if (!selectedSlot) {
         toast.error(
           "No split selected"
@@ -347,6 +413,54 @@ export default function ShiftSplitting() {
       ) {
         toast.error(
           "Invalid break duration for this split"
+        );
+        return;
+      }
+
+      const fromMinutes =
+        railwayToMinutes(
+          form.breakFrom
+        );
+      const toMinutes =
+        railwayToMinutes(
+          form.breakTo
+        );
+
+      if (toMinutes <= fromMinutes) {
+        toast.error(
+          "Break To must be after Break From"
+        );
+        return;
+      }
+
+      const splitStartMinutes =
+        railwayToMinutes(
+          toRailwayTime(
+            selectedSlot.start
+          )
+        );
+      const splitEndMinutes =
+        railwayToMinutes(
+          toRailwayTime(
+            selectedSlot.end
+          )
+        );
+
+      if (
+        fromMinutes < splitStartMinutes ||
+        toMinutes > splitEndMinutes
+      ) {
+        toast.error(
+          "Break time must be within selected split"
+        );
+        return;
+      }
+
+      const selectedDuration =
+        toMinutes - fromMinutes;
+      if (selectedDuration !== durationNumber) {
+        toast.error(
+          `Break duration mismatch. Selected time is ${selectedDuration} min`
         );
         return;
       }
@@ -376,6 +490,10 @@ export default function ShiftSplitting() {
                   form.type,
                 duration_minutes:
                   durationNumber,
+                break_start_time:
+                  form.breakFrom,
+                break_end_time:
+                  form.breakTo,
               }),
             }
           );
@@ -801,6 +919,16 @@ export default function ShiftSplitting() {
                               }{" "}
                               Minutes
                             </p>
+                            <p
+                              className="
+                                text-xs
+                                text-slate-500
+                                mt-1
+                              "
+                            >
+                              {item.break_start_time} -{" "}
+                              {item.break_end_time}
+                            </p>
                           </div>
                         )
                       )}
@@ -981,6 +1109,106 @@ export default function ShiftSplitting() {
                 <option>
                   60
                 </option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label
+                className="
+                  text-sm
+                  font-semibold
+                  text-slate-700
+                  mb-2
+                  block
+                "
+              >
+                Break From
+              </label>
+
+              <select
+                value={
+                  form.breakFrom
+                }
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    breakFrom:
+                      e.target.value,
+                  })
+                }
+                className="
+                  w-full
+                  h-[52px]
+                  rounded-[16px]
+                  border
+                  border-slate-300
+                  px-4
+                  outline-none
+                  bg-white
+                "
+              >
+                <option value="">
+                  Select From
+                </option>
+                {breakTimeOptions.map(
+                  (time) => (
+                    <option
+                      key={`from-${time}`}
+                      value={time}
+                    >
+                      {time}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label
+                className="
+                  text-sm
+                  font-semibold
+                  text-slate-700
+                  mb-2
+                  block
+                "
+              >
+                Break To
+              </label>
+
+              <select
+                value={form.breakTo}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    breakTo:
+                      e.target.value,
+                  })
+                }
+                className="
+                  w-full
+                  h-[52px]
+                  rounded-[16px]
+                  border
+                  border-slate-300
+                  px-4
+                  outline-none
+                  bg-white
+                "
+              >
+                <option value="">
+                  Select To
+                </option>
+                {breakTimeOptions.map(
+                  (time) => (
+                    <option
+                      key={`to-${time}`}
+                      value={time}
+                    >
+                      {time}
+                    </option>
+                  )
+                )}
               </select>
             </div>
 

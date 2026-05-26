@@ -82,22 +82,72 @@ export default function Sidebar() {
         </nav>
       </aside>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-50 flex justify-around py-3">
-        {menus.map((menu) => {
-          const Icon = menu.icon
+    <div
+  className="
+    md:hidden
+    fixed
+    bottom-0
+    left-0
+    right-0
+    z-50
+    h-[70px]
+    bg-white
+    border-t
+    border-slate-200
+    flex
+    items-center
+    justify-around
+    px-2
+  "
+>
+  {menus.map((menu) => {
+    const Icon = menu.icon;
 
-          return (
-            <NavLink
-              key={menu.name}
-              to={menu.path}
-              className="flex flex-col items-center text-xs"
-            >
-              <Icon size={20} />
-              <span>{menu.name}</span>
-            </NavLink>
-          )
-        })}
-      </div>
+    return (
+      <NavLink
+        key={menu.name}
+        to={menu.path}
+        className={({ isActive }) =>
+          `
+            flex
+            flex-col
+            items-center
+            justify-center
+            gap-1
+            h-[54px]
+            min-w-[68px]
+            rounded-2xl
+            px-3
+            transition-all
+            duration-200
+
+            ${
+              isActive
+                ? `
+                  bg-[#e8f1ff]
+                  text-[#1D60AB]
+                `
+                : `
+                  text-slate-500
+                `
+            }
+          `
+        }
+      >
+        <Icon size={20} />
+
+        <span
+          className="
+            text-[11px]
+            font-semibold
+          "
+        >
+          {menu.name}
+        </span>
+      </NavLink>
+    );
+  })}
+</div>
     </>
   )
 }

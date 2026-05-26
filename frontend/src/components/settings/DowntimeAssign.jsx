@@ -460,58 +460,34 @@ export default function DowntimeAssign() {
 
             {/* FIXED TIME */}
             {form.timeType ===
-            "fixed" ? (
-              <select
-                value={
-                  form.fixedTime
-                }
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    fixedTime:
-                      e.target.value,
-                  })
-                }
-                className="
-                  w-full
-                  h-[52px]
-                  rounded-[16px]
-                  border
-                  border-slate-300
-                  px-4
-                  outline-none
-                  text-slate-700
-                  bg-white
-                  focus:border-[#1D60AB]
-                  focus:ring-4
-                  focus:ring-blue-100
-                "
-              >
-                <option>
-                  10 min
-                </option>
-
-                <option>
-                  20 min
-                </option>
-
-                <option>
-                  30 min
-                </option>
-
-                <option>
-                  40 min
-                </option>
-
-                <option>
-                  50 min
-                </option>
-
-                <option>
-                  60 min
-                </option>
-              </select>
-            ) : (
+    "fixed" ? (
+      
+      <input
+        type="number"
+        placeholder="Enter Time"
+        value={form.fixedTime}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            fixedTime:
+              e.target.value,
+          })
+        }
+        className="
+          w-full
+          h-[52px]
+          rounded-[16px]
+          border
+          border-slate-300
+          px-4
+          outline-none
+            bg-white
+                focus:border-[#1D60AB]
+                focus:ring-4
+                focus:ring-blue-100
+        "
+      />
+    ): (
               <div
                 className="
                   h-[52px]
