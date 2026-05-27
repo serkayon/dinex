@@ -35,8 +35,7 @@ export default function ShiftSplitting() {
     });
   const apiBaseUrl =
     import.meta.env
-      .VITE_API_BASE_URL ||
-    "http://127.0.0.1:8000";
+      .VITE_API_BASE_URL;
 
   const fetchShiftTimings =
     useCallback(async () => {
@@ -171,6 +170,22 @@ export default function ShiftSplitting() {
       ) +
       24 * 60) %
     (24 * 60);
+
+  const resolveSlotAbsoluteMinute = (
+    slotStartMinute,
+    clockMinute
+  ) => {
+    let absoluteMinute =
+      clockMinute;
+    if (
+      absoluteMinute <
+      slotStartMinute
+    ) {
+      absoluteMinute +=
+        24 * 60;
+    }
+    return absoluteMinute;
+  };
 
   const fetchShiftBreaks =
     useCallback(async () => {
@@ -425,30 +440,43 @@ export default function ShiftSplitting() {
         railwayToMinutes(
           form.breakTo
         );
-
-      if (toMinutes <= fromMinutes) {
-        toast.error(
-          "Break To must be after Break From"
-        );
-        return;
-      }
-
       const splitStartMinutes =
         railwayToMinutes(
           toRailwayTime(
             selectedSlot.start
           )
         );
-      const splitEndMinutes =
-        railwayToMinutes(
-          toRailwayTime(
-            selectedSlot.end
-          )
+      const splitEndAbsoluteMinutes =
+        splitStartMinutes +
+        Number(
+          selectedSlot.totalMinutes
+        );
+      const fromAbsoluteMinutes =
+        resolveSlotAbsoluteMinute(
+          splitStartMinutes,
+          fromMinutes
+        );
+      const toAbsoluteMinutes =
+        resolveSlotAbsoluteMinute(
+          splitStartMinutes,
+          toMinutes
         );
 
       if (
-        fromMinutes < splitStartMinutes ||
-        toMinutes > splitEndMinutes
+        toAbsoluteMinutes <=
+        fromAbsoluteMinutes
+      ) {
+        toast.error(
+          "Break To must be after Break From"
+        );
+        return;
+      }
+
+      if (
+        fromAbsoluteMinutes <
+          splitStartMinutes ||
+        toAbsoluteMinutes >
+          splitEndAbsoluteMinutes
       ) {
         toast.error(
           "Break time must be within selected split"
@@ -457,7 +485,8 @@ export default function ShiftSplitting() {
       }
 
       const selectedDuration =
-        toMinutes - fromMinutes;
+        toAbsoluteMinutes -
+        fromAbsoluteMinutes;
       if (selectedDuration !== durationNumber) {
         toast.error(
           `Break duration mismatch. Selected time is ${selectedDuration} min`

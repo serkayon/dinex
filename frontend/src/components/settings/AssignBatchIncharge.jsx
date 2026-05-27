@@ -28,6 +28,12 @@ function PersonDropdown({
       (person) =>
         person.name === value
     ) || null;
+  const formatPersonRollNumber = (
+    serialNo
+  ) =>
+    `P${String(
+      Number(serialNo) || 0
+    ).padStart(3, "0")}`;
     
   return (
     <div className="mb-5">
@@ -78,7 +84,9 @@ function PersonDropdown({
                   className="w-8 h-8 rounded-full object-cover"
                 />
                 <span className="truncate text-sm font-medium">
-                  {selectedPerson.name}
+                  {`${formatPersonRollNumber(
+                    selectedPerson.serialNo
+                  )} - ${selectedPerson.name}`}
                 </span>
               </>
             ) : (
@@ -132,7 +140,9 @@ function PersonDropdown({
                     className="w-8 h-8 rounded-full object-cover"
                   />
                   <span className="text-sm text-slate-700 text-left">
-                    {person.name}
+                    {`${formatPersonRollNumber(
+                      person.serialNo
+                    )} - ${person.name}`}
                   </span>
                 </button>
               ))
@@ -166,10 +176,15 @@ const capitalize = (
     (char) =>
       char.toUpperCase()
   );
+  const formatBatchInchargeNumber = (
+    serialNo
+  ) =>
+    `B${String(
+      Number(serialNo) || 0
+    ).padStart(2, "0")}`;
   const apiBaseUrl =
     import.meta.env
-      .VITE_API_BASE_URL ||
-    "http://127.0.0.1:8000";
+      .VITE_API_BASE_URL;
 
   const [form, setForm] =
     useState({
@@ -670,6 +685,22 @@ const capitalize = (
     whitespace-nowrap
   "
 >
+                Team ID 
+                  </th>
+
+                  <th
+  className="
+    px-4
+    py-3
+    text-left
+    text-sm
+    font-semibold
+    border
+    border-slate-200
+    bg-[#f8fafc]
+    whitespace-nowrap
+  "
+>
                     Line Leader
                   </th>
 
@@ -732,8 +763,8 @@ const capitalize = (
                     <td
                       colSpan={
                         editMode
-                          ? 4
-                          : 3
+                          ? 5
+                          : 4
                       }
                       className="
                         py-10
@@ -753,8 +784,8 @@ const capitalize = (
                     <td
                       colSpan={
                         editMode
-                          ? 4
-                          : 3
+                          ? 5
+                          : 4
                       }
                       className="
                         py-10
@@ -780,6 +811,22 @@ const capitalize = (
                           border-slate-100
                         "
                       >
+                        <td
+                          className="
+                            px-4
+                            py-4
+                            text-sm
+                            font-bold
+                            text-[#1D60AB]
+                              border
+    border-slate-200
+                          "
+                        >
+                          {formatBatchInchargeNumber(
+                            item.serial_no
+                          )}
+                        </td>
+
                         {/* LINE LEADER */}
                         <td
                           className="

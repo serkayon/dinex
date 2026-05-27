@@ -40,16 +40,23 @@ const capitalize = (
 
   const apiBaseUrl =
     import.meta.env
-      .VITE_API_BASE_URL ||
-    "http://127.0.0.1:8000";
+      .VITE_API_BASE_URL;
 
   const mapPerson = (person) => ({
     id: person.id,
+    serialNo: person.serial_no,
     image: person.photo,
     name: person.employee_name,
     designation:
       person.designation,
   });
+
+  const formatPersonRollNumber = (
+    serialNo
+  ) =>
+    `P${String(
+      Number(serialNo) || 0
+    ).padStart(3, "0")}`;
 
   const fetchPeople =
     async () => {
@@ -632,6 +639,11 @@ max-h-[500px]
                 >
                   <th className="px-4 py-3 text-left text-sm font-semibold   border
     border-slate-200">
+                    Roll ID
+                  </th>
+
+                  <th className="px-4 py-3 text-left text-sm font-semibold   border
+    border-slate-200">
                     Photo
                   </th>
 
@@ -660,8 +672,8 @@ max-h-[500px]
                     <td
                       colSpan={
                         editMode
-                          ? 4
-                          : 3
+                          ? 5
+                          : 4
                       }
                       className="
                         py-10
@@ -678,8 +690,8 @@ max-h-[500px]
                     <td
                       colSpan={
                         editMode
-                          ? 4
-                          : 3
+                          ? 5
+                          : 4
                       }
                       className="
                         py-10
@@ -704,6 +716,13 @@ max-h-[500px]
                           border-slate-100
                         "
                       >
+                        <td className="px-4 py-3 text-sm font-semibold text-[#1D60AB]   border
+    border-slate-200">
+                          {formatPersonRollNumber(
+                            person.serialNo
+                          )}
+                        </td>
+
                         <td className="px-4 py-3   border
     border-slate-200">
                           <img

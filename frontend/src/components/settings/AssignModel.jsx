@@ -22,8 +22,7 @@ export default function AssignModel() {
     useState(false);
   const apiBaseUrl =
     import.meta.env
-      .VITE_API_BASE_URL ||
-    "http://127.0.0.1:8000";
+      .VITE_API_BASE_URL;
 
   const [form, setForm] =
     useState({
@@ -288,23 +287,33 @@ export default function AssignModel() {
         </button>
       </div>
 
+   <div
+  className="
+    grid
+    grid-cols-1
+    xl:grid-cols-[420px_1fr]
+    gap-5
+    items-start
+  "
+>
+  <div
+  className="
+    bg-[#f8fafc]
+    rounded-[24px]
+    p-5
+    border
+    border-slate-200
+  "
+>
       <div
-        className="
-          bg-[#f8fafc]
-          rounded-[24px]
-          p-5
-          border
-          border-slate-200
-        "
-      >
-        <div
-          className="
-            grid
-            grid-cols-1
-            lg:grid-cols-4
-            gap-4
-          "
-        >
+  className="
+    grid
+    grid-cols-1
+    lg:grid-cols-[220px_230px_1fr]
+    gap-4
+    items-start
+  "
+>
           <div>
             <label
               className="
@@ -338,7 +347,7 @@ export default function AssignModel() {
               }
               className="
                 w-full
-                h-[52px]
+                h-[46px]
                 rounded-[16px]
                 border
                 border-slate-300
@@ -373,7 +382,7 @@ export default function AssignModel() {
               Cycle Time
             </label>
 
-            <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
               <input
                 type="number"
                 placeholder="Duration"
@@ -389,7 +398,8 @@ export default function AssignModel() {
                 }
                 className="
                   w-full
-                  h-[52px]
+                 w-[120px]
+  h-[46px]
                   rounded-[16px]
                   border
                   border-slate-300
@@ -416,7 +426,8 @@ export default function AssignModel() {
                 }
                 className="
                   w-[110px]
-                  h-[52px]
+                w-[90px]
+  h-[46px]
                   rounded-[16px]
                   border
                   border-slate-300
@@ -444,7 +455,7 @@ export default function AssignModel() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+      <div className="lg:col-span-3">
             <label
               className="
                 text-sm
@@ -464,34 +475,35 @@ export default function AssignModel() {
               Explanation
             </label>
 
-            <input
-              type="text"
-              placeholder="Enter explanation"
-              value={
-                form.explanation
-              }
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  explanation:
-                    e.target.value,
-                })
-              }
-              className="
-                w-full
-                h-[52px]
-                rounded-[16px]
-                border
-                border-slate-300
-                px-4
-                outline-none
-                text-slate-700
-                focus:border-[#1D60AB]
-                focus:ring-4
-                focus:ring-blue-100
-                bg-white
-              "
-            />
+         <textarea
+  placeholder="Enter explanation"
+  value={
+    form.explanation
+  }
+  onChange={(e) =>
+    setForm({
+      ...form,
+      explanation:
+        e.target.value,
+    })
+  }
+  rows={3}
+  className="
+    w-full
+    rounded-[16px]
+    border
+    border-slate-300
+    px-4
+    py-3
+    outline-none
+    text-slate-700
+    resize-none
+    focus:border-[#1D60AB]
+    focus:ring-4
+    focus:ring-blue-100
+    bg-white
+  "
+/>
           </div>
         </div>
 
@@ -510,8 +522,8 @@ export default function AssignModel() {
             }
             disabled={isSaving}
             className="
-              sm:w-[180px]
-              h-[52px]
+            sm:w-[140px]
+h-[46px]
               rounded-[16px]
               bg-[#1D60AB]
               hover:bg-[#164f90]
@@ -532,8 +544,8 @@ export default function AssignModel() {
               handleClear
             }
             className="
-              sm:w-[180px]
-              h-[52px]
+           sm:w-[140px]
+h-[46px]
               rounded-[16px]
               bg-slate-200
               hover:bg-slate-300
@@ -547,14 +559,68 @@ export default function AssignModel() {
         </div>
       </div>
 
-      <div
-        className="
-          flex
-          flex-wrap
-          gap-3
-          mt-5
-        "
-      >
+<div className="
+    mt-6
+    border
+    border-slate-200
+    rounded-[24px]
+    bg-[#f8fafc]
+    p-4
+  ">
+<div
+  className="
+    flex
+    items-center
+    justify-between
+    mb-4
+  "
+>
+  <div>
+    <h3
+      className="
+        text-[18px]
+        font-bold
+        text-slate-800
+      "
+    >
+      Assigned Models
+    </h3>
+
+    <p
+      className="
+        text-sm
+        text-slate-500
+        mt-1
+      "
+    >
+      Production model configurations
+    </p>
+  </div>
+
+  <div
+    className="
+      text-sm
+      font-semibold
+      text-[#1D60AB]
+      bg-blue-100
+      px-3
+      py-1
+      rounded-full
+    "
+  >
+    {models.length} Models
+  </div>
+</div>
+<div
+  className="
+     grid
+  grid-cols-1
+  gap-4
+  max-h-[520px]
+  overflow-y-auto
+  pr-2
+  "
+>
         {isLoading && (
           <p className="text-sm text-slate-400">
             Loading models...
@@ -567,15 +633,14 @@ export default function AssignModel() {
               key={model.id || index}
               className="
                 relative
-                min-w-[120px]
-                bg-[#edf4ff]
-                border
-                border-[#c7dcff]
-                rounded-[16px]
-                px-4
-                py-3
-                shadow-sm
-                transition-all
+               bg-white
+  border
+  border-slate-200
+  rounded-[20px]
+  p-4
+  shadow-sm
+  hover:shadow-md
+  transition-all
               "
             >
               {editMode && (
@@ -584,9 +649,9 @@ export default function AssignModel() {
                     handleDelete(index)
                   }
                   className="
-                    absolute
-                    -top-2
-                    -right-2
+                   absolute
+  top-3
+  right-3
                     w-6
                     h-6
                     rounded-full
@@ -627,9 +692,22 @@ export default function AssignModel() {
                 {model.cycle_time_duration}{" "}
                 {model.cycle_time_unit}
               </p>
+              {/* <p
+  className="
+    text-sm
+    text-slate-500
+    mt-3
+    leading-relaxed
+    break-words
+  "
+>
+  {model.explanation}
+</p> */}
             </div>
           )
         )}
+        </div>
+      </div>
       </div>
     </div>
   );

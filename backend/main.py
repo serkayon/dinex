@@ -1,4 +1,5 @@
 import sqlite3
+import random
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -18,6 +19,7 @@ class PersonCreate(BaseModel):
 
 class PersonResponse(BaseModel):
     id: int
+    serial_no: int
     photo: str
     employee_name: str
     designation: str
@@ -31,6 +33,7 @@ class BatchInchargeCreate(BaseModel):
 
 class BatchInchargeResponse(BaseModel):
     id: int
+    serial_no: int
     line_leader_name: str
     team_leader_name: str
     supervisor_name: str
@@ -179,6 +182,55 @@ class BatchResponse(BaseModel):
     status: str
     splitPlan: list[BatchSplitResponse]
 
+
+class MachineCycleResponse(BaseModel):
+    batch_id: int
+    split_no: int
+    model_id: str
+    result: str
+    produced_at: str
+
+
+class BatchSplitLiveResponse(BaseModel):
+    splitNo: int
+    from_time: str = Field(alias="from")
+    to: str
+    modelId: str
+    target: int
+    actual: int
+    ok: int
+    rework: int
+    reject: int
+
+    class Config:
+        populate_by_name = True
+
+
+class BatchLiveSummaryResponse(BaseModel):
+    batch_id: int
+    produced: int
+    ok: int
+    rework: int
+    reject: int
+    splitRows: list[BatchSplitLiveResponse]
+
+
+class BatchSplitDowntimeCreate(BaseModel):
+    split_no: int = Field(gt=0)
+    downtime_type: str = Field(min_length=1)
+    duration_minutes: int = Field(gt=0)
+    notes: str = ""
+
+
+class BatchSplitDowntimeResponse(BaseModel):
+    id: int
+    batch_id: int
+    split_no: int
+    downtime_type: str
+    duration_minutes: int
+    notes: str
+    created_at: str
+
 app = FastAPI(title="Dinex API", version="0.1.0")
 
 app.add_middleware(
@@ -196,6 +248,13 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def get_next_serial_no(conn: sqlite3.Connection, table_name: str) -> int:
+    row = conn.execute(
+        f"SELECT COALESCE(MAX(serial_no), 0) + 1 AS next_serial FROM {table_name}"
+    ).fetchone()
+    return int(row["next_serial"])
+
+
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with get_connection() as conn:
@@ -203,6 +262,7 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS people (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                serial_no INTEGER,
                 photo TEXT NOT NULL,
                 employee_name TEXT NOT NULL,
                 designation TEXT NOT NULL,
@@ -214,6 +274,7 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS batch_incharges (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                serial_no INTEGER,
                 line_leader_name TEXT NOT NULL,
                 team_leader_name TEXT NOT NULL,
                 supervisor_name TEXT NOT NULL,
@@ -324,6 +385,33 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS batch_parts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                split_no INTEGER NOT NULL,
+                model_id TEXT NOT NULL,
+                result TEXT NOT NULL CHECK (result IN ('ok', 'rework', 'reject')),
+                produced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(batch_id) REFERENCES batches(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS batch_split_downtimes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                split_no INTEGER NOT NULL,
+                downtime_type TEXT NOT NULL,
+                duration_minutes INTEGER NOT NULL,
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(batch_id) REFERENCES batches(id)
+            )
+            """
+        )
         shift_break_columns = conn.execute("PRAGMA table_info(shift_breaks)").fetchall()
         shift_break_column_names = {column["name"] for column in shift_break_columns}
         if "break_start_time" not in shift_break_column_names:
@@ -355,26 +443,45 @@ def init_db() -> None:
             )
         columns = conn.execute("PRAGMA table_info(batch_incharges)").fetchall()
         column_names = {column["name"] for column in columns}
-        expected_columns = {
-            "id",
-            "line_leader_name",
-            "team_leader_name",
-            "supervisor_name",
-            "created_at",
-        }
-        if column_names != expected_columns:
-            conn.execute("DROP TABLE IF EXISTS batch_incharges")
+        if "serial_no" not in column_names:
+            conn.execute("ALTER TABLE batch_incharges ADD COLUMN serial_no INTEGER")
+
+        people_columns = conn.execute("PRAGMA table_info(people)").fetchall()
+        people_column_names = {column["name"] for column in people_columns}
+        if "serial_no" not in people_column_names:
+            conn.execute("ALTER TABLE people ADD COLUMN serial_no INTEGER")
+
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_people_serial_no ON people(serial_no)"
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_incharges_serial_no ON batch_incharges(serial_no)"
+        )
+
+        people_without_serial = conn.execute(
+            "SELECT id FROM people WHERE serial_no IS NULL OR serial_no <= 0 ORDER BY id ASC"
+        ).fetchall()
+        next_people_serial = conn.execute(
+            "SELECT COALESCE(MAX(serial_no), 0) AS max_serial FROM people"
+        ).fetchone()["max_serial"]
+        for row in people_without_serial:
+            next_people_serial += 1
             conn.execute(
-                """
-                CREATE TABLE batch_incharges (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    line_leader_name TEXT NOT NULL,
-                    team_leader_name TEXT NOT NULL,
-                    supervisor_name TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(line_leader_name, team_leader_name, supervisor_name)
-                )
-                """
+                "UPDATE people SET serial_no = ? WHERE id = ?",
+                (next_people_serial, row["id"]),
+            )
+
+        batch_without_serial = conn.execute(
+            "SELECT id FROM batch_incharges WHERE serial_no IS NULL OR serial_no <= 0 ORDER BY id ASC"
+        ).fetchall()
+        next_batch_serial = conn.execute(
+            "SELECT COALESCE(MAX(serial_no), 0) AS max_serial FROM batch_incharges"
+        ).fetchone()["max_serial"]
+        for row in batch_without_serial:
+            next_batch_serial += 1
+            conn.execute(
+                "UPDATE batch_incharges SET serial_no = ? WHERE id = ?",
+                (next_batch_serial, row["id"]),
             )
         model_columns = conn.execute("PRAGMA table_info(models)").fetchall()
         model_column_names = {column["name"] for column in model_columns}
@@ -424,7 +531,7 @@ def list_people() -> list[PersonResponse]:
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, photo, employee_name, designation
+            SELECT id, serial_no, photo, employee_name, designation
             FROM people
             ORDER BY id DESC
             """
@@ -438,16 +545,21 @@ def create_person(payload: PersonCreate) -> PersonResponse:
     with get_connection() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO people (photo, employee_name, designation)
-            VALUES (?, ?, ?)
+            INSERT INTO people (serial_no, photo, employee_name, designation)
+            VALUES (?, ?, ?, ?)
             """,
-            (payload.photo, payload.employee_name.strip(), payload.designation.strip()),
+            (
+                get_next_serial_no(conn, "people"),
+                payload.photo,
+                payload.employee_name.strip(),
+                payload.designation.strip(),
+            ),
         )
         conn.commit()
 
         row = conn.execute(
             """
-            SELECT id, photo, employee_name, designation
+            SELECT id, serial_no, photo, employee_name, designation
             FROM people
             WHERE id = ?
             """,
@@ -474,6 +586,7 @@ def list_batch_incharges() -> list[BatchInchargeResponse]:
             """
             SELECT
                 bi.id,
+                bi.serial_no,
                 bi.line_leader_name,
                 bi.team_leader_name,
                 bi.supervisor_name
@@ -491,10 +604,11 @@ def create_batch_incharge(payload: BatchInchargeCreate) -> BatchInchargeResponse
         try:
             cursor = conn.execute(
                 """
-                INSERT INTO batch_incharges (line_leader_name, team_leader_name, supervisor_name)
-                VALUES (?, ?, ?)
+                INSERT INTO batch_incharges (serial_no, line_leader_name, team_leader_name, supervisor_name)
+                VALUES (?, ?, ?, ?)
                 """,
                 (
+                    get_next_serial_no(conn, "batch_incharges"),
                     payload.line_leader_name.strip(),
                     payload.team_leader_name.strip(),
                     payload.supervisor_name.strip(),
@@ -510,6 +624,7 @@ def create_batch_incharge(payload: BatchInchargeCreate) -> BatchInchargeResponse
             """
             SELECT
                 bi.id,
+                bi.serial_no,
                 bi.line_leader_name,
                 bi.team_leader_name,
                 bi.supervisor_name
@@ -767,11 +882,21 @@ def upsert_shift_timing(shift_key: str, payload: ShiftTimingUpsert) -> ShiftTimi
 
     with get_connection() as conn:
         existing = conn.execute(
-            "SELECT id FROM shift_timings WHERE shift_key = ?",
+            """
+            SELECT id, start_time, end_time, time_split
+            FROM shift_timings
+            WHERE shift_key = ?
+            """,
             (payload.shift_key.strip(),),
         ).fetchone()
 
         if existing:
+            timing_changed = (
+                existing["start_time"] != payload.start_time.strip()
+                or existing["end_time"] != payload.end_time.strip()
+                or int(existing["time_split"]) != int(payload.time_split)
+            )
+
             conn.execute(
                 """
                 UPDATE shift_timings
@@ -795,6 +920,13 @@ def upsert_shift_timing(shift_key: str, payload: ShiftTimingUpsert) -> ShiftTimi
                     payload.shift_key.strip(),
                 ),
             )
+
+            # Existing breaks are split-bound; clear them if shift timing/split changes.
+            if timing_changed:
+                conn.execute(
+                    "DELETE FROM shift_breaks WHERE shift_key = ?",
+                    (payload.shift_key.strip(),),
+                )
         else:
             conn.execute(
                 """
@@ -972,6 +1104,91 @@ def _build_batch_response(conn: sqlite3.Connection, batch_row: sqlite3.Row) -> B
     )
 
 
+def _to_minutes(time_value: str) -> int:
+    hours, minutes = [int(v) for v in time_value.split(":")]
+    return hours * 60 + minutes
+
+
+def _is_within_split(now_minutes: int, split_start: int, split_end: int) -> bool:
+    if split_start < split_end:
+        return split_start <= now_minutes < split_end
+    if split_start > split_end:
+        return now_minutes >= split_start or now_minutes < split_end
+    return True
+
+
+def _build_live_summary(conn: sqlite3.Connection, batch_id: int) -> BatchLiveSummaryResponse:
+    split_rows = conn.execute(
+        """
+        SELECT
+            split_no,
+            from_time,
+            to_time,
+            model_id,
+            target
+        FROM batch_splits
+        WHERE batch_id = ?
+        ORDER BY split_no ASC
+        """,
+        (batch_id,),
+    ).fetchall()
+
+    result_rows = conn.execute(
+        """
+        SELECT
+            split_no,
+            result,
+            COUNT(*) AS count
+        FROM batch_parts
+        WHERE batch_id = ?
+        GROUP BY split_no, result
+        """,
+        (batch_id,),
+    ).fetchall()
+
+    split_counts: dict[int, dict[str, int]] = {}
+    for row in result_rows:
+        split_no = int(row["split_no"])
+        if split_no not in split_counts:
+            split_counts[split_no] = {"ok": 0, "rework": 0, "reject": 0}
+        split_counts[split_no][row["result"]] = int(row["count"])
+
+    live_rows: list[BatchSplitLiveResponse] = []
+    for split in split_rows:
+        split_no = int(split["split_no"])
+        counts = split_counts.get(split_no, {"ok": 0, "rework": 0, "reject": 0})
+        actual = counts["ok"] + counts["rework"] + counts["reject"]
+        live_rows.append(
+            BatchSplitLiveResponse(
+                splitNo=split_no,
+                **{
+                    "from": split["from_time"],
+                    "to": split["to_time"],
+                    "modelId": split["model_id"],
+                    "target": int(split["target"]),
+                    "actual": actual,
+                    "ok": counts["ok"],
+                    "rework": counts["rework"],
+                    "reject": counts["reject"],
+                },
+            )
+        )
+
+    produced = sum(row.actual for row in live_rows)
+    ok = sum(row.ok for row in live_rows)
+    rework = sum(row.rework for row in live_rows)
+    reject = sum(row.reject for row in live_rows)
+
+    return BatchLiveSummaryResponse(
+        batch_id=batch_id,
+        produced=produced,
+        ok=ok,
+        rework=rework,
+        reject=reject,
+        splitRows=live_rows,
+    )
+
+
 @app.post("/batches/start", response_model=BatchResponse, status_code=201)
 def start_batch(payload: BatchStartRequest) -> BatchResponse:
     with get_connection() as conn:
@@ -1092,3 +1309,188 @@ def list_batches() -> list[BatchResponse]:
             "SELECT * FROM batches ORDER BY id DESC"
         ).fetchall()
         return [_build_batch_response(conn, row) for row in rows]
+
+
+@app.post("/batches/{batch_id}/machine-cycle", response_model=MachineCycleResponse, status_code=201)
+def machine_cycle(batch_id: int) -> MachineCycleResponse:
+    with get_connection() as conn:
+        batch_row = conn.execute(
+            "SELECT * FROM batches WHERE id = ?",
+            (batch_id,),
+        ).fetchone()
+        if not batch_row:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        if batch_row["status"] != "active":
+            raise HTTPException(status_code=409, detail="Batch is not active")
+
+        split_rows = conn.execute(
+            """
+            SELECT split_no, from_time, to_time, model_id
+            FROM batch_splits
+            WHERE batch_id = ?
+            ORDER BY split_no ASC
+            """,
+            (batch_id,),
+        ).fetchall()
+        if not split_rows:
+            raise HTTPException(status_code=400, detail="No split rows found for batch")
+
+        now_row = conn.execute(
+            "SELECT CAST(strftime('%H', 'now', 'localtime') AS INTEGER) AS h, CAST(strftime('%M', 'now', 'localtime') AS INTEGER) AS m"
+        ).fetchone()
+        now_minutes = int(now_row["h"]) * 60 + int(now_row["m"])
+
+        active_split = None
+        for split in split_rows:
+            start_minutes = _to_minutes(split["from_time"])
+            end_minutes = _to_minutes(split["to_time"])
+            if _is_within_split(now_minutes, start_minutes, end_minutes):
+                active_split = split
+                break
+
+        if not active_split:
+            active_split = split_rows[0]
+
+        roll = random.random()
+        if roll < 0.7:
+            result = "ok"
+        elif roll < 0.9:
+            result = "rework"
+        else:
+            result = "reject"
+
+        cursor = conn.execute(
+            """
+            INSERT INTO batch_parts (batch_id, split_no, model_id, result)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                batch_id,
+                int(active_split["split_no"]),
+                active_split["model_id"],
+                result,
+            ),
+        )
+        conn.commit()
+
+        part_row = conn.execute(
+            """
+            SELECT batch_id, split_no, model_id, result, produced_at
+            FROM batch_parts
+            WHERE id = ?
+            """,
+            (cursor.lastrowid,),
+        ).fetchone()
+
+    return MachineCycleResponse(**dict(part_row))
+
+
+@app.get("/batches/{batch_id}/live-summary", response_model=BatchLiveSummaryResponse)
+def get_batch_live_summary(batch_id: int) -> BatchLiveSummaryResponse:
+    with get_connection() as conn:
+        batch_row = conn.execute(
+            "SELECT id FROM batches WHERE id = ?",
+            (batch_id,),
+        ).fetchone()
+        if not batch_row:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        return _build_live_summary(conn, batch_id)
+
+
+@app.get(
+    "/batches/{batch_id}/split-downtimes",
+    response_model=list[BatchSplitDowntimeResponse],
+)
+def list_batch_split_downtimes(batch_id: int) -> list[BatchSplitDowntimeResponse]:
+    with get_connection() as conn:
+        batch_row = conn.execute(
+            "SELECT id FROM batches WHERE id = ?",
+            (batch_id,),
+        ).fetchone()
+        if not batch_row:
+            raise HTTPException(status_code=404, detail="Batch not found")
+
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                batch_id,
+                split_no,
+                downtime_type,
+                duration_minutes,
+                notes,
+                created_at
+            FROM batch_split_downtimes
+            WHERE batch_id = ?
+            ORDER BY split_no ASC, id ASC
+            """,
+            (batch_id,),
+        ).fetchall()
+        return [BatchSplitDowntimeResponse(**dict(row)) for row in rows]
+
+
+@app.post(
+    "/batches/{batch_id}/split-downtimes",
+    response_model=BatchSplitDowntimeResponse,
+    status_code=201,
+)
+def create_batch_split_downtime(
+    batch_id: int, payload: BatchSplitDowntimeCreate
+) -> BatchSplitDowntimeResponse:
+    downtime_type = payload.downtime_type.strip()
+    notes = payload.notes.strip()
+
+    if not downtime_type:
+        raise HTTPException(status_code=400, detail="Downtime type is required")
+
+    with get_connection() as conn:
+        batch_row = conn.execute(
+            "SELECT id FROM batches WHERE id = ?",
+            (batch_id,),
+        ).fetchone()
+        if not batch_row:
+            raise HTTPException(status_code=404, detail="Batch not found")
+
+        split_row = conn.execute(
+            "SELECT split_no FROM batch_splits WHERE batch_id = ? AND split_no = ?",
+            (batch_id, payload.split_no),
+        ).fetchone()
+        if not split_row:
+            raise HTTPException(status_code=404, detail="Split row not found")
+
+        cursor = conn.execute(
+            """
+            INSERT INTO batch_split_downtimes (
+                batch_id,
+                split_no,
+                downtime_type,
+                duration_minutes,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                batch_id,
+                payload.split_no,
+                downtime_type,
+                payload.duration_minutes,
+                notes,
+            ),
+        )
+        conn.commit()
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                batch_id,
+                split_no,
+                downtime_type,
+                duration_minutes,
+                notes,
+                created_at
+            FROM batch_split_downtimes
+            WHERE id = ?
+            """,
+            (cursor.lastrowid,),
+        ).fetchone()
+        return BatchSplitDowntimeResponse(**dict(row))

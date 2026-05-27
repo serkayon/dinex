@@ -20,8 +20,7 @@ export default function StartBatchModal({
   } = useAppStore();
   const apiBaseUrl =
     import.meta.env
-      .VITE_API_BASE_URL ||
-    "http://127.0.0.1:8000";
+      .VITE_API_BASE_URL;
 
   const initialForm = {
     teamLeader: "",
@@ -39,6 +38,8 @@ export default function StartBatchModal({
     useState([]);
   const [models, setModels] =
     useState([]);
+  const [shiftBreaks, setShiftBreaks] =
+    useState([]);
   const [selectedBatchInchargeId, setSelectedBatchInchargeId] =
     useState("");
   const [shiftRows, setShiftRows] =
@@ -55,8 +56,14 @@ export default function StartBatchModal({
     text.replace(
       /\b\w/g,
       (char) =>
-        char.toUpperCase()
+      char.toUpperCase()
     );
+  const formatBatchInchargeNumber = (
+    serialNo
+  ) =>
+    `B${String(
+      Number(serialNo) || 0
+    ).padStart(2, "0")}`;
 
   const toMinutes = (timeValue = "") => {
     const [hours, minutes] =
@@ -234,10 +241,36 @@ export default function StartBatchModal({
         }
       };
 
+    const fetchShiftBreaks =
+      async () => {
+        if (!open) return;
+        try {
+          const response =
+            await fetch(
+              `${apiBaseUrl}/shift-breaks`
+            );
+          if (!response.ok) {
+            throw new Error();
+          }
+          const rows =
+            await response.json();
+          setShiftBreaks(
+            Array.isArray(rows)
+              ? rows
+              : []
+          );
+        } catch (error) {
+          toast.error(
+            "Failed to load shift breaks"
+          );
+        }
+      };
+
     fetchBatchIncharges();
     fetchManpower();
     fetchModels();
     fetchShiftTimings();
+    fetchShiftBreaks();
   }, [open, apiBaseUrl]);
 
   useEffect(() => {
@@ -305,14 +338,77 @@ export default function StartBatchModal({
         return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
       };
 
+      const fromClock =
+        toClock(currentStart);
+      const toClockValue =
+        toClock(currentEnd);
+      const splitStart =
+        toMinutes(fromClock);
+      const splitEnd =
+        toMinutes(toClockValue);
+      const applicableBreaks =
+        shiftBreaks.filter(
+          (item) =>
+            item.shift_key ===
+              activeShiftRow?.shift_key &&
+            item.split_start_time ===
+              fromClock &&
+            item.split_end_time ===
+              toClockValue
+        );
+      const breakMinutes =
+        applicableBreaks.reduce(
+          (sum, item) => {
+            if (
+              !isValidClockTime(
+                item.break_start_time
+              ) ||
+              !isValidClockTime(
+                item.break_end_time
+              )
+            ) {
+              return sum;
+            }
+            const breakStart =
+              toMinutes(
+                item.break_start_time
+              );
+            const breakEnd =
+              toMinutes(
+                item.break_end_time
+              );
+            return (
+              sum +
+              getOverlapMinutes(
+                splitStart,
+                splitEnd,
+                breakStart,
+                breakEnd
+              )
+            );
+          },
+          0
+        );
+      const breakTypes = [
+        ...new Set(
+          applicableBreaks
+            .map((item) =>
+              String(
+                item.break_type || ""
+              ).trim()
+            )
+            .filter(Boolean)
+        ),
+      ];
+
       rows.push({
         splitNo: index + 1,
-        from: toClock(
-          currentStart
-        ),
-        to: toClock(currentEnd),
+        from: fromClock,
+        to: toClockValue,
         modelId: "",
         target: "",
+        breakMinutes,
+        breakTypes,
       });
 
       currentStart =
@@ -320,7 +416,7 @@ export default function StartBatchModal({
     }
 
     setSplitPlanRows(rows);
-  }, [activeShiftRow]);
+  }, [activeShiftRow, shiftBreaks]);
 
   /* RESET WHEN MODAL CLOSES */
   useEffect(() => {
@@ -345,6 +441,70 @@ export default function StartBatchModal({
         e.target.value,
     });
   };
+
+  const getRangeSegments = (
+    startMinutes,
+    endMinutes
+  ) => {
+    if (startMinutes === endMinutes) {
+      return [];
+    }
+    if (endMinutes > startMinutes) {
+      return [[startMinutes, endMinutes]];
+    }
+    return [
+      [startMinutes, 24 * 60],
+      [0, endMinutes],
+    ];
+  };
+
+  const getOverlapMinutes = (
+    rangeAStart,
+    rangeAEnd,
+    rangeBStart,
+    rangeBEnd
+  ) => {
+    const aSegments =
+      getRangeSegments(
+        rangeAStart,
+        rangeAEnd
+      );
+    const bSegments =
+      getRangeSegments(
+        rangeBStart,
+        rangeBEnd
+      );
+    let overlap = 0;
+
+    aSegments.forEach(
+      ([aStart, aEnd]) => {
+        bSegments.forEach(
+          ([bStart, bEnd]) => {
+            overlap += Math.max(
+              0,
+              Math.min(
+                aEnd,
+                bEnd
+              ) -
+                Math.max(
+                  aStart,
+                  bStart
+                )
+            );
+          }
+        );
+      }
+    );
+
+    return overlap;
+  };
+
+  const isValidClockTime = (
+    value = ""
+  ) =>
+    /^([01]\d|2[0-3]):([0-5]\d)$/.test(
+      String(value).trim()
+    );
 
   const handleBatchInchargeSelect = (
     e
@@ -391,16 +551,26 @@ export default function StartBatchModal({
     field,
     value
   ) => {
-    setSplitPlanRows((prev) =>
-      prev.map((row, index) =>
-        index === splitIndex
-          ? {
-              ...row,
-              [field]: value,
-            }
-          : row
-      )
-    );
+    setSplitPlanRows((prev) => {
+      return prev.map(
+        (row, index) => {
+          if (
+            index !== splitIndex
+          ) {
+            return row;
+          }
+
+          const updatedRow = {
+            ...row,
+            [field]: value,
+          };
+
+          return {
+            ...updatedRow,
+          };
+        }
+      );
+    });
   };
 
   const handleSubmit = async () => {
@@ -574,7 +744,7 @@ export default function StartBatchModal({
           duration-200
           
         "
-      >
+      >      
         {/* HEADER */}
         <div
           className="
@@ -632,9 +802,15 @@ export default function StartBatchModal({
             <X size={22} />
           </button>
         </div>
-
-        {/* BODY */}
-        <div className="p-5 md:p-6">
+<div
+  className="
+    p-4
+    sm:p-5
+    md:p-6
+    overflow-y-auto
+    flex-1
+  "
+>
           <div
             className="
               grid
@@ -695,7 +871,9 @@ export default function StartBatchModal({
                       key={item.id}
                       value={item.id}
                     >
-                      {`Team Leader: ${capitalize(
+                      {`${formatBatchInchargeNumber(
+                        item.serial_no
+                      )} | Team Leader: ${capitalize(
                         item.team_leader_name
                       )} | Line Leader: ${capitalize(
                         item.line_leader_name
@@ -793,8 +971,14 @@ export default function StartBatchModal({
                   Target
                 </p>
               </div>
-
-              <div className="space-y-2">
+<div
+  className="
+    space-y-2
+    max-h-[320px]
+    overflow-y-auto
+    pr-1
+  "
+>
               {splitPlanRows.map(
                 (row, index) => (
                   <div
@@ -802,9 +986,32 @@ export default function StartBatchModal({
                     className="grid grid-cols-1 md:grid-cols-[160px_1fr_160px] gap-3 p-2 rounded-[14px] border border-slate-200 bg-slate-50"
                   >
                     <div className="h-[46px] rounded-[12px] border border-slate-300 bg-white px-3 flex items-center justify-between text-sm font-semibold text-slate-700">
-                      <span>{row.from}</span>
-                      <span className="text-slate-400">to</span>
-                      <span>{row.to}</span>
+                      <div className="flex flex-col">
+                        <span>
+                          {row.from}{" "}
+                          <span className="text-slate-400">
+                            to
+                          </span>{" "}
+                          {row.to}
+                        </span>
+                        {Number(
+                          row.breakMinutes
+                        ) > 0 ? (
+                          <span className="text-[11px] text-[#d97706] font-semibold">
+                            Break:{" "}
+                            {Number(
+                              row.breakMinutes
+                            )} min
+                            {Array.isArray(
+                              row.breakTypes
+                            ) &&
+                            row.breakTypes
+                              .length > 0
+                              ? ` (${row.breakTypes.join(", ")})`
+                              : ""}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div>

@@ -1,6 +1,7 @@
 import {
   useEffect,
   useState,
+  useMemo,
 } from "react";
 
 import {
@@ -18,18 +19,117 @@ export default function Topbar() {
   const {
     batchStarted = false,
     hydrateCurrentBatch,
+    currentBatch,
   } = useAppStore();
 
   const [openStart, setOpenStart] =
     useState(false);
 const [openEnd, setOpenEnd] =
   useState(false);
+const [openEndConfirm, setOpenEndConfirm] =
+  useState(false);
+const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     hydrateCurrentBatch().catch(
       () => {}
     );
   }, [hydrateCurrentBatch]);
+
+  useEffect(() => {
+    if (!batchStarted) return undefined;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [batchStarted]);
+
+  const remainingSeconds =
+    useMemo(() => {
+      if (
+        !batchStarted ||
+        !currentBatch?.shift
+      ) {
+        return 0;
+      }
+
+      const nowDate =
+        new Date(now);
+      const startHour = Number(
+        currentBatch.shift.start || 0
+      );
+      const endHour = Number(
+        currentBatch.shift.end || 0
+      );
+
+      const start = new Date(nowDate);
+      const end = new Date(nowDate);
+      start.setHours(
+        Math.floor(startHour),
+        Math.round(
+          (startHour % 1) * 60
+        ),
+        0,
+        0
+      );
+      end.setHours(
+        Math.floor(endHour),
+        Math.round(
+          (endHour % 1) * 60
+        ),
+        0,
+        0
+      );
+
+      if (end <= start) {
+        if (nowDate >= start) {
+          end.setDate(
+            end.getDate() + 1
+          );
+        } else {
+          start.setDate(
+            start.getDate() - 1
+          );
+        }
+      }
+
+      return Math.max(
+        0,
+        Math.floor(
+          (end.getTime() -
+            nowDate.getTime()) /
+            1000
+        )
+      );
+    }, [batchStarted, currentBatch, now]);
+
+  const formatDuration = (
+    totalSeconds
+  ) => {
+    const safe = Math.max(
+      0,
+      Math.floor(totalSeconds)
+    );
+    const h = String(
+      Math.floor(safe / 3600)
+    ).padStart(2, "0");
+    const m = String(
+      Math.floor(
+        (safe % 3600) / 60
+      )
+    ).padStart(2, "0");
+    const s = String(
+      safe % 60
+    ).padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+
+  const isBeforeLast30Min =
+    remainingSeconds > 30 * 60;
+
+  const handleEndBatchClick =
+    () => {
+      setOpenEndConfirm(true);
+    };
+
   return (
     <>
       <header
@@ -146,7 +246,7 @@ const [openEnd, setOpenEnd] =
           <button
             onClick={() =>
               batchStarted
-                ? setOpenEnd(true)
+                ? handleEndBatchClick()
                 : setOpenStart(true)
             }
             className={`
@@ -207,6 +307,51 @@ const [openEnd, setOpenEnd] =
     setOpenEnd(false)
   }
 />
+
+      {openEndConfirm ? (
+        <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 p-5">
+            <h3 className="text-xl font-bold text-slate-800">
+              End Batch Confirmation
+            </h3>
+            <p className="text-sm text-slate-600 mt-2">
+              You should end batch only in the last 30 minutes of shift.
+            </p>
+            <p className="text-xs mt-2 font-semibold text-slate-500">
+              Remaining shift time: {formatDuration(remainingSeconds)}
+            </p>
+            {isBeforeLast30Min ? (
+              <p className="text-xs mt-1 text-amber-600">
+                You are trying to end batch before last 30 minutes.
+              </p>
+            ) : (
+              <p className="text-xs mt-1 text-emerald-600">
+                You are within the last 30 minutes.
+              </p>
+            )}
+
+            <div className="mt-5 flex gap-2 justify-end">
+              <button
+                onClick={() =>
+                  setOpenEndConfirm(false)
+                }
+                className="px-4 h-10 rounded-lg bg-slate-200 text-slate-700 font-semibold"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setOpenEndConfirm(false);
+                  setOpenEnd(true);
+                }}
+                className="px-4 h-10 rounded-lg bg-[#1D60AB] text-white font-semibold hover:bg-[#164f90]"
+              >
+                Continue Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
