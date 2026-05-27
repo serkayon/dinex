@@ -27,6 +27,7 @@ export default function StartBatchModal({
     lineLeader: "",
     supervisor: "",
     manpower: "",
+    present: "",
     shiftTime: "",
   };
 
@@ -435,11 +436,34 @@ export default function StartBatchModal({
   if (!open) return null;
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]:
-        e.target.value,
-    });
+    const { name, value } =
+      e.target;
+
+    if (name === "manpower") {
+      setForm((prev) => {
+        const total =
+          Number(value) || 0;
+        const currentPresent =
+          Number(
+            prev.present
+          ) || 0;
+        return {
+          ...prev,
+          manpower: value,
+          present:
+            currentPresent >
+            total
+              ? String(total)
+              : prev.present,
+        };
+      });
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const getRangeSegments = (
@@ -576,10 +600,40 @@ export default function StartBatchModal({
   const handleSubmit = async () => {
     if (
       !selectedBatchInchargeId ||
-      !form.manpower
+      !form.manpower ||
+      !form.present
     ) {
       toast.error(
-        "Select incharge group and manpower"
+        "Select incharge group, manpower and present"
+      );
+      return;
+    }
+
+    const totalManpower =
+      Number(form.manpower);
+    const presentManpower =
+      Number(form.present);
+    if (
+      !Number.isFinite(
+        totalManpower
+      ) ||
+      !Number.isFinite(
+        presentManpower
+      ) ||
+      totalManpower <= 0 ||
+      presentManpower <= 0
+    ) {
+      toast.error(
+        "Enter valid manpower and present"
+      );
+      return;
+    }
+    if (
+      presentManpower >
+      totalManpower
+    ) {
+      toast.error(
+        "Present cannot be greater than manpower"
       );
       return;
     }
@@ -655,6 +709,7 @@ export default function StartBatchModal({
     try {
       await startBatch({
         ...form,
+        manpower: `${presentManpower}/${totalManpower}`,
         splitPlan: splitPlanRows.map(
           (row) => {
             const selectedModel =
@@ -887,7 +942,8 @@ export default function StartBatchModal({
             </div>
 
             {/* MANPOWER */}
-            <div>
+            <div className="grid grid-cols-1 md:grid-cols-[180px_180px] gap-3">
+              <div>
               <label
                 className="
                   text-sm
@@ -944,6 +1000,68 @@ export default function StartBatchModal({
                   )
                 )}
               </select>
+              </div>
+
+              <div>
+                <label
+                  className="
+                    text-sm
+                    font-semibold
+                    text-slate-700
+                    mb-2
+                    flex
+                    items-center
+                    gap-2
+                  "
+                >
+                  Present
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={
+                    form.manpower
+                      ? Number(
+                          form.manpower
+                        )
+                      : undefined
+                  }
+                  name="present"
+                  value={
+                    form.present
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder={
+                    form.manpower
+                      ? `<= ${form.manpower}`
+                      : "Enter present"
+                  }
+                  className="
+                    w-full md:max-w-[180px]
+                    h-[50px]
+                    rounded-[14px]
+                    border
+                    border-slate-300
+                    px-4
+                    text-slate-700
+                    outline-none
+                    focus:border-[#1D60AB]
+                    focus:ring-4
+                    focus:ring-blue-100
+                  "
+                />
+              </div>
+
+              {form.present &&
+              form.manpower ? (
+                <p className="text-xs font-semibold text-[#1D60AB] md:col-span-2">
+                  Effective Manpower:{" "}
+                  {form.present}/
+                  {form.manpower}
+                </p>
+              ) : null}
             </div>
           </div>
 

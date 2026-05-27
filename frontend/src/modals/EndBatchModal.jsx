@@ -241,10 +241,6 @@ export default function EndBatchModal({ open, onClose }) {
   if (!open) return null;
 
   const doEndBatch = async () => {
-    if (totalPendingMinutes > 0) {
-      toast.error("Assign pending first. Shift pending must be 0.");
-      return;
-    }
     try {
       setLoading(true);
       await endBatch();
@@ -259,11 +255,7 @@ export default function EndBatchModal({ open, onClose }) {
   };
 
   const handleEndClick = async () => {
-    if (totalPendingMinutes > 0) {
-      toast.error("Assign pending first. Shift pending must be 0.");
-      return;
-    }
-    if (isEarlyEnd && !confirmEarlyEnd) {
+    if ((isEarlyEnd || totalPendingMinutes > 0) && !confirmEarlyEnd) {
       setConfirmEarlyEnd(true);
       return;
     }
@@ -292,12 +284,12 @@ export default function EndBatchModal({ open, onClose }) {
           ) : null}
 
           {totalPendingMinutes > 0 ? (
-            <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 flex items-start gap-2">
-              <AlertTriangle size={18} className="text-rose-600 mt-0.5" />
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 flex items-start gap-2">
+              <AlertTriangle size={18} className="text-amber-600 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-rose-800">Assign pending first</p>
-                <p className="text-xs text-rose-700 mt-0.5">
-                  You can end batch only when total shift pending is 0 min. Remaining pending: {totalPendingMinutes} min.
+                <p className="text-sm font-bold text-amber-800">Pending time will remain if you end now</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Remaining pending: {totalPendingMinutes} min. For demo, you can continue and end batch anyway.
                 </p>
               </div>
             </div>
@@ -457,7 +449,13 @@ export default function EndBatchModal({ open, onClose }) {
           {confirmEarlyEnd ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
               <p className="text-sm font-bold text-amber-800">Continue anyway?</p>
-              <p className="text-xs text-amber-700 mt-1">You are ending batch before final 30 minutes of shift.</p>
+              <p className="text-xs text-amber-700 mt-1">
+                {isEarlyEnd && totalPendingMinutes > 0
+                  ? `You are ending before final 30 minutes and ${totalPendingMinutes} min pending will remain.`
+                  : isEarlyEnd
+                    ? "You are ending batch before final 30 minutes of shift."
+                    : `${totalPendingMinutes} min pending will remain after ending this batch.`}
+              </p>
             </div>
           ) : null}
 
@@ -476,7 +474,7 @@ export default function EndBatchModal({ open, onClose }) {
               <button
                 onClick={doEndBatch}
                 className="flex-1 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold disabled:opacity-60"
-                disabled={loading || totalPendingMinutes > 0}
+                disabled={loading}
               >
                 Continue Anyway & End Batch
               </button>
@@ -484,7 +482,7 @@ export default function EndBatchModal({ open, onClose }) {
               <button
                 onClick={handleEndClick}
                 className="flex-1 h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold disabled:opacity-60"
-                disabled={loading || totalPendingMinutes > 0}
+                disabled={loading}
               >
                 End Batch
               </button>

@@ -114,7 +114,7 @@ const capitalize = (
   const handleSave = async () => {
     if (!form.image) {
       toast.error(
-        "Photo is required"
+        "Profile is required"
       );
       return;
     }
@@ -342,7 +342,7 @@ const capitalize = (
               className="text-[#1D60AB]"
             />
 
-            Upload Photo
+            Upload Profile Image
           </label>
 
           <label
@@ -644,7 +644,7 @@ max-h-[500px]
 
                   <th className="px-4 py-3 text-left text-sm font-semibold   border
     border-slate-200">
-                    Photo
+                    Profile
                   </th>
 
                   <th className="px-4 py-3 text-left text-sm font-semibold   border

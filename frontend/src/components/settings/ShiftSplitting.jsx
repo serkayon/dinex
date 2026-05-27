@@ -723,21 +723,77 @@ export default function ShiftSplitting() {
           {splitRows.map(
             (slot) => {
               const slotBreaks =
-                breaks.filter(
-                  (
-                    item
-                  ) =>
-                    item.shift_key ===
-                      activeShift &&
-                    item.split_start_time ===
-                      toRailwayTime(
-                        slot.start
-                      ) &&
-                    item.split_end_time ===
-                      toRailwayTime(
-                        slot.end
-                      )
-                );
+                breaks
+                  .filter(
+                    (
+                      item
+                    ) =>
+                      item.shift_key ===
+                        activeShift &&
+                      item.split_start_time ===
+                        toRailwayTime(
+                          slot.start
+                        ) &&
+                      item.split_end_time ===
+                        toRailwayTime(
+                          slot.end
+                        )
+                  )
+                  .map((item) => {
+                    const splitStartAbsoluteMinutes =
+                      slot.start;
+                    const splitEndAbsoluteMinutes =
+                      splitStartAbsoluteMinutes +
+                      slot.totalMinutes;
+                    const breakStartAbsoluteMinutes =
+                      resolveSlotAbsoluteMinute(
+                        splitStartAbsoluteMinutes,
+                        railwayToMinutes(
+                          item.break_start_time
+                        )
+                      );
+                    const breakEndAbsoluteMinutesRaw =
+                      resolveSlotAbsoluteMinute(
+                        splitStartAbsoluteMinutes,
+                        railwayToMinutes(
+                          item.break_end_time
+                        )
+                      );
+                    const breakEndAbsoluteMinutes =
+                      breakEndAbsoluteMinutesRaw <=
+                      breakStartAbsoluteMinutes
+                        ? breakEndAbsoluteMinutesRaw +
+                          24 * 60
+                        : breakEndAbsoluteMinutesRaw;
+
+                    return {
+                      ...item,
+                      startAbsoluteMinutes:
+                        Math.max(
+                          splitStartAbsoluteMinutes,
+                          Math.min(
+                            breakStartAbsoluteMinutes,
+                            splitEndAbsoluteMinutes
+                          )
+                        ),
+                      endAbsoluteMinutes:
+                        Math.max(
+                          splitStartAbsoluteMinutes,
+                          Math.min(
+                            breakEndAbsoluteMinutes,
+                            splitEndAbsoluteMinutes
+                          )
+                        ),
+                    };
+                  })
+                  .sort(
+                    (
+                      first,
+                      second
+                    ) =>
+                      first.startAbsoluteMinutes -
+                      second.startAbsoluteMinutes
+                  );
 
               const usedMinutes =
                 slotBreaks.reduce(
@@ -746,7 +802,9 @@ export default function ShiftSplitting() {
                     item
                   ) =>
                     total +
-                    item.duration_minutes,
+                    (Number(
+                      item.duration_minutes
+                    ) || 0),
                   0
                 );
 
@@ -844,10 +902,8 @@ export default function ShiftSplitting() {
                     {/* BREAKS */}
                     <div
                       className="
-                        flex
-                        flex-wrap
-                        gap-3
                         flex-1
+                        min-w-[280px]
                       "
                     >
                       {slotBreaks.length ===
@@ -865,102 +921,140 @@ export default function ShiftSplitting() {
                           </div>
                         )}
 
-                      {slotBreaks.map(
-                        (
-                          item,
-                          index
-                        ) => (
+                      {slotBreaks.length >
+                        0 && (
                           <div
-                            key={
-                              index
-                            }
                             className="
                               relative
-                              bg-[#fff3e8]
-                              border
-                              border-[#ffcf9c]
+                              w-full
+                              h-[98px]
                               rounded-[16px]
-                              px-4
-                              py-3
-                              min-w-[170px]
+                              border
+                              border-slate-200
+                              bg-slate-50
+                              overflow-hidden
                             "
                           >
-                            {/* DELETE */}
-                            {editMode && (
-                              <button
-                                onClick={() =>
-                                  handleDeleteBreak(
-                                    item.id
-                                  )
-                                }
-                                className="
-                                  absolute
-                                  -top-2
-                                  -right-2
-                                  w-6
-                                  h-6
-                                  rounded-full
-                                  bg-red-500
-                                  text-white
-                                  flex
-                                  items-center
-                                  justify-center
-                                "
-                              >
-                                <X
-                                  size={
-                                    13
+                            <div
+                              className="
+                                absolute
+                                left-0
+                                right-0
+                                top-1/2
+                                h-[2px]
+                                -translate-y-1/2
+                                bg-slate-200
+                              "
+                            />
+                            {slotBreaks.map(
+                              (
+                                item,
+                                index
+                              ) => (
+                                <div
+                                  key={
+                                    item.id ??
+                                    index
                                   }
-                                />
-                              </button>
+                                  className="
+                                    absolute
+                                    top-2
+                                    bottom-2
+                                    bg-[#fff3e8]
+                                    border
+                                    border-[#ffcf9c]
+                                    rounded-[16px]
+                                    px-3
+                                    py-2
+                                    overflow-hidden
+                                  "
+                                  style={{
+                                    left: `${((item.startAbsoluteMinutes - slot.start) / slot.totalMinutes) * 100}%`,
+                                    width: `${Math.max((((item.endAbsoluteMinutes - item.startAbsoluteMinutes) / slot.totalMinutes) * 100), 10)}%`,
+                                  }}
+                                >
+                                  {/* DELETE */}
+                                  {editMode && (
+                                    <button
+                                      onClick={() =>
+                                        handleDeleteBreak(
+                                          item.id
+                                        )
+                                      }
+                                      className="
+                                        absolute
+                                        -top-2
+                                        -right-2
+                                        w-6
+                                        h-6
+                                        rounded-full
+                                        bg-red-500
+                                        text-white
+                                        flex
+                                        items-center
+                                        justify-center
+                                      "
+                                    >
+                                      <X
+                                        size={
+                                          13
+                                        }
+                                      />
+                                    </button>
+                                  )}
+
+                                  <div className="flex items-center gap-2">
+                                    <Coffee
+                                      size={
+                                        15
+                                      }
+                                      className="text-[#ff7a00]"
+                                    />
+
+                                    <p
+                                      className="
+                                        text-sm
+                                        font-bold
+                                        text-slate-700
+                                        truncate
+                                      "
+                                    >
+                                      {
+                                        item.break_type
+                                      }
+                                    </p>
+                                  </div>
+
+                                  <p
+                                    className="
+                                      text-xs
+                                      text-slate-500
+                                      mt-1
+                                      truncate
+                                    "
+                                  >
+                                    {
+                                      item.duration_minutes
+                                    }{" "}
+                                    Minutes
+                                  </p>
+                                  <p
+                                    className="
+                                      text-xs
+                                      text-slate-500
+                                      mt-1
+                                      truncate
+                                    "
+                                  >
+                                    {item.break_start_time} -{" "}
+                                    {item.break_end_time}
+                                  </p>
+                                </div>
+                              )
                             )}
-
-                            <div className="flex items-center gap-2">
-                              <Coffee
-                                size={
-                                  15
-                                }
-                                className="text-[#ff7a00]"
-                              />
-
-                              <p
-                                className="
-                                  text-sm
-                                  font-bold
-                                  text-slate-700
-                                "
-                              >
-                                {
-                                  item.break_type
-                                }
-                              </p>
-                            </div>
-
-                            <p
-                              className="
-                                text-xs
-                                text-slate-500
-                                mt-1
-                              "
-                            >
-                              {
-                                item.duration_minutes
-                              }{" "}
-                              Minutes
-                            </p>
-                            <p
-                              className="
-                                text-xs
-                                text-slate-500
-                                mt-1
-                              "
-                            >
-                              {item.break_start_time} -{" "}
-                              {item.break_end_time}
-                            </p>
                           </div>
-                        )
-                      )}
+                        )}
+
                     </div>
                   </div>
                 </div>

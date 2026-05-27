@@ -197,182 +197,235 @@ export default function DowntimeAssign() {
     });
   };
 
-  return (
+return (
+  <div
+    className="
+      bg-white
+      rounded-[24px]
+      p-4
+      md:p-5
+      shadow-[0_2px_10px_rgba(15,23,42,0.05)]
+      mt-6
+    "
+  >
+    {/* HEADER */}
     <div
       className="
-        bg-white
-        rounded-[28px]
-        p-5
-        md:p-6
-        shadow-[0_2px_10px_rgba(15,23,42,0.05)]
-        mt-6
+        flex
+        items-start
+        justify-between
+        gap-4
+        mb-6
       "
     >
-      {/* =========================
-          HEADER
-      ========================= */}
+      <div>
+        <h2
+          className="
+            text-[24px]
+            md:text-[28px]
+            font-bold
+            text-[#0f172a]
+          "
+        >
+          Downtime Assign
+        </h2>
 
+        <p
+          className="
+            text-slate-500
+            text-sm
+            mt-1
+          "
+        >
+          Configure downtime reasons and timings
+        </p>
+      </div>
+
+      {/* EDIT MODE */}
+      <button
+        onClick={() =>
+          setEditMode(!editMode)
+        }
+        className={`
+          h-[44px]
+          px-4
+          rounded-[14px]
+          flex
+          items-center
+          gap-2
+          font-semibold
+          transition-all
+          shrink-0
+          ${
+            editMode
+              ? "bg-red-100 text-red-600"
+              : "bg-blue-100 text-[#1D60AB]"
+          }
+        `}
+      >
+        <Pencil size={17} />
+
+        {editMode
+          ? "Exit Edit"
+          : "Edit Mode"}
+      </button>
+    </div>
+
+    {/* FORM CARD */}
+    <div
+      className="
+        bg-[#f8fafc]
+        rounded-[22px]
+        p-4
+        border
+        border-slate-200
+      "
+    >
+      {/* FORM ROW */}
       <div
         className="
           flex
-          items-center
-          justify-between
+          flex-col
+          xl:flex-row
+          xl:items-end
           gap-4
-          mb-6
         "
       >
-        <div>
-          <h2
+        {/* TYPE */}
+        <div className="w-full xl:w-[250px]">
+          <label
             className="
-              text-[24px]
-              md:text-[28px]
-              font-bold
-              text-[#0f172a]
-            "
-          >
-            Downtime Assign
-          </h2>
-
-          <p
-            className="
-              text-slate-500
               text-sm
-              mt-1
+              font-semibold
+              text-slate-700
+              mb-2
+              block
             "
           >
-            Configure downtime
-            reasons and timings
-          </p>
+            Downtime Type
+          </label>
+
+          <input
+            type="text"
+            placeholder="Material"
+            value={form.type}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                type:
+                  e.target.value,
+              })
+            }
+            className="
+              w-full
+              h-[46px]
+              rounded-[14px]
+              border
+              border-slate-300
+              px-3
+              outline-none
+              text-slate-700
+              bg-white
+              focus:border-[#1D60AB]
+              focus:ring-4
+              focus:ring-blue-100
+            "
+          />
         </div>
 
-        {/* EDIT MODE */}
-        <button
-          onClick={() =>
-            setEditMode(
-              !editMode
-            )
-          }
-          className={`
-            h-[46px]
-            px-5
-            rounded-[14px]
-            flex
-            items-center
-            gap-2
-            font-semibold
-            transition-all
-            ${
-              editMode
-                ? "bg-red-100 text-red-600"
-                : "bg-blue-100 text-[#1D60AB]"
+        {/* DETAILS */}
+        <div className="w-full xl:w-[220px]">
+          <label
+            className="
+              text-sm
+              font-semibold
+              text-slate-700
+              mb-2
+              block
+            "
+          >
+            Details
+          </label>
+
+          <input
+            type="text"
+            placeholder="Explain downtime"
+            value={
+              form.details
             }
-          `}
-        >
-          <Pencil size={18} />
+            onChange={(e) =>
+              setForm({
+                ...form,
+                details:
+                  e.target.value,
+              })
+            }
+            className="
+              w-full
+              h-[46px]
+              rounded-[14px]
+              border
+              border-slate-300
+              px-3
+              outline-none
+              text-slate-700
+              bg-white
+              focus:border-[#1D60AB]
+              focus:ring-4
+              focus:ring-blue-100
+            "
+          />
+        </div>
 
-          {editMode
-            ? "Exit Edit"
-            : "Edit Mode"}
-        </button>
-      </div>
-
-      {/* =========================
-          FORM CARD
-      ========================= */}
-
-      <div
-        className="
-          bg-[#f8fafc]
-          rounded-[24px]
-          p-5
-          border
-          border-slate-200
-        "
-      >
-        <div
-          className="
-            grid
-            grid-cols-1
-            lg:grid-cols-3
-            gap-4
-          "
-        >
-          {/* TYPE */}
-          <div>
-            <label
-              className="
-                text-sm
-                font-semibold
-                text-slate-700
-                mb-2
-                block
-              "
-            >
-              Downtime Type
-            </label>
-
-            <input
-              type="text"
-              placeholder="Material"
-              value={form.type}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  type:
-                    e.target.value,
-                })
-              }
-              className="
-                w-full
-                h-[52px]
-                rounded-[16px]
-                border
-                border-slate-300
-                px-4
-                outline-none
-                text-slate-700
-                bg-white
-                focus:border-[#1D60AB]
-                focus:ring-4
-                focus:ring-blue-100
-              "
+        {/* TIME SECTION */}
+        <div className="w-full xl:flex-1">
+          <label
+            className="
+              text-sm
+              font-semibold
+              text-slate-700
+              mb-2
+              flex
+              items-center
+              gap-2
+            "
+          >
+            <TimerReset
+              size={16}
+              className="text-[#1D60AB]"
             />
-          </div>
 
-          {/* DETAILS */}
-          <div>
-            <label
-              className="
-                text-sm
-                font-semibold
-                text-slate-700
-                mb-2
-                block
-              "
-            >
-              Details
-            </label>
+            Time
+          </label>
 
-            <input
-              type="text"
-              placeholder="Explain downtime"
+          <div
+            className="
+              flex
+              flex-col
+              sm:flex-row
+              gap-3
+            "
+          >
+            {/* DROPDOWN */}
+            <select
               value={
-                form.details
+                form.timeType
               }
               onChange={(e) =>
                 setForm({
                   ...form,
-                  details:
+                  timeType:
                     e.target.value,
                 })
               }
               className="
                 w-full
-                h-[52px]
-                rounded-[16px]
+                sm:w-[130px]
+                h-[46px]
+                rounded-[14px]
                 border
                 border-slate-300
-                px-4
+                px-3
                 outline-none
                 text-slate-700
                 bg-white
@@ -380,121 +433,57 @@ export default function DowntimeAssign() {
                 focus:ring-4
                 focus:ring-blue-100
               "
-            />
-          </div>
-
-          {/* TIME SECTION */}
-          <div>
-            <label
-              className="
-                text-sm
-                font-semibold
-                text-slate-700
-                mb-2
-                flex
-                items-center
-                gap-2
-              "
             >
-              <TimerReset
-                size={16}
-                className="text-[#1D60AB]"
-              />
-
-              Time
-            </label>
-
-            {/* FIXED / VARIABLE */}
-            <div className="flex gap-2 mb-3">
-              <button
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    timeType:
-                      "fixed",
-                  })
-                }
-                className={`
-                  flex-1
-                  h-[45px]
-                  rounded-[14px]
-                  font-semibold
-                  transition-all
-                  ${
-                    form.timeType ===
-                    "fixed"
-                      ? "bg-[#1D60AB] text-white"
-                      : "bg-white border border-slate-300 text-slate-700"
-                  }
-                `}
-              >
+              <option value="fixed">
                 Fixed
-              </button>
+              </option>
 
-              <button
-                onClick={() =>
+              <option value="variable">
+                Variable
+              </option>
+            </select>
+
+            {/* FIXED INPUT */}
+            {form.timeType ===
+            "fixed" ? (
+              <input
+                type="number"
+                placeholder="Enter time"
+                value={
+                  form.fixedTime
+                }
+                onChange={(e) =>
                   setForm({
                     ...form,
-                    timeType:
-                      "variable",
+                    fixedTime:
+                      e.target.value,
                   })
                 }
-                className={`
-                  flex-1
-                  h-[45px]
+                className="
+                  w-full
+                  sm:w-[150px]
+                  h-[46px]
                   rounded-[14px]
-                  font-semibold
-                  transition-all
-                  ${
-                    form.timeType ===
-                    "variable"
-                      ? "bg-[#1D60AB] text-white"
-                      : "bg-white border border-slate-300 text-slate-700"
-                  }
-                `}
-              >
-                Variable
-              </button>
-            </div>
-
-            {/* FIXED TIME */}
-            {form.timeType ===
-    "fixed" ? (
-      
-      <input
-        type="number"
-        placeholder="Enter Time"
-        value={form.fixedTime}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            fixedTime:
-              e.target.value,
-          })
-        }
-        className="
-          w-full
-          h-[52px]
-          rounded-[16px]
-          border
-          border-slate-300
-          px-4
-          outline-none
-            bg-white
-                focus:border-[#1D60AB]
-                focus:ring-4
-                focus:ring-blue-100
-        "
-      />
-    ): (
+                  border
+                  border-slate-300
+                  px-3
+                  outline-none
+                  text-slate-700
+                  bg-white
+                  focus:border-[#1D60AB]
+                  focus:ring-4
+                  focus:ring-blue-100
+                "
+              />
+            ) : (
               <div
                 className="
-                  h-[52px]
-                  rounded-[16px]
+                  h-[46px]
+                  px-4
+                  rounded-[14px]
                   border
                   border-dashed
                   border-slate-300
-                  px-4
                   flex
                   items-center
                   text-slate-500
@@ -502,289 +491,339 @@ export default function DowntimeAssign() {
                   bg-white
                 "
               >
-                Variable downtime does not require time input
+                Variable downtime does not have a fixed time input 
               </div>
             )}
+
+            {/* BUTTONS */}
+            <div
+              className="
+                flex
+                gap-3
+                flex-col
+                sm:flex-row
+              "
+            >
+              <button
+                onClick={
+                  handleSave
+                }
+                disabled={
+                  isSaving
+                }
+                className="
+                  w-full
+                  sm:w-[110px]
+                  h-[46px]
+                  rounded-[14px]
+                  bg-[#1D60AB]
+                  hover:bg-[#164f90]
+                  text-white
+                  font-semibold
+                  shadow-md
+                  transition-all
+                  disabled:opacity-60
+                "
+              >
+                {isSaving
+                  ? "Saving..."
+                  : "Save"}
+              </button>
+
+              <button
+                onClick={
+                  handleClear
+                }
+                className="
+                  w-full
+                  sm:w-[110px]
+                  h-[46px]
+                  rounded-[14px]
+                  bg-slate-200
+                  hover:bg-slate-300
+                  text-slate-700
+                  font-semibold
+                  transition-all
+                "
+              >
+                Clear
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* BUTTONS */}
-        <div
-          className="
-            flex
-            flex-col
-            sm:flex-row
-            gap-3
-            mt-6
-          "
-        >
-          {/* SAVE */}
-          <button
-            onClick={
-              handleSave
-            }
-            disabled={isSaving}
-            className="
-              sm:w-[180px]
-              h-[52px]
-              rounded-[16px]
-              bg-[#1D60AB]
-              hover:bg-[#164f90]
-              text-white
-              font-semibold
-              shadow-md
-              transition-all
-              disabled:opacity-60
-            "
-          >
-            {isSaving
-              ? "Saving..."
-              : "Save"}
-          </button>
-
-          {/* CLEAR */}
-          <button
-            onClick={
-              handleClear
-            }
-            className="
-              sm:w-[180px]
-              h-[52px]
-              rounded-[16px]
-              bg-slate-200
-              hover:bg-slate-300
-              text-slate-700
-              font-semibold
-              transition-all
-            "
-          >
-            Clear
-          </button>
-        </div>
       </div>
+    </div>
 
-      {/* =========================
-          TABLE
-      ========================= */}
-
-      <div
+ {/* TABLE */}
+<div
+  className="
+    mt-6
+    border
+    border-slate-200
+    rounded-[22px]
+    overflow-hidden
+    bg-white
+  "
+>
+  {/* SCROLL WRAPPER */}
+  <div
+    className="
+      overflow-auto
+      max-h-[420px]
+      custom-scrollbar
+    "
+  >
+    <table
+      className="
+        w-full
+        min-w-[750px]
+        border-collapse
+      "
+    >
+      {/* HEADER */}
+      <thead
         className="
-          overflow-x-auto
-          mt-6
-          border
-          border-slate-200
-          rounded-[24px]
+          sticky
+          top-0
+          z-10
+          bg-[#f8fafc]
         "
       >
-        <table className="w-full min-w-[700px]">
-          <thead>
-            <tr className="bg-[#f8fafc]">
-              <th
+        <tr>
+          <th
+            className="
+              px-5
+              py-4
+              text-left
+              text-sm
+              font-bold
+              text-slate-700
+              border
+              border-slate-200
+              whitespace-nowrap
+            "
+          >
+            Type
+          </th>
+
+          <th
+            className="
+              px-5
+              py-4
+              text-left
+              text-sm
+              font-bold
+              text-slate-700
+              border
+              border-slate-200
+              whitespace-nowrap
+            "
+          >
+            Details
+          </th>
+
+          <th
+            className="
+              px-5
+              py-4
+              text-left
+              text-sm
+              font-bold
+              text-slate-700
+              border
+              border-slate-200
+              whitespace-nowrap
+            "
+          >
+            Time
+          </th>
+
+          {editMode && (
+            <th
+              className="
+                px-5
+                py-4
+                text-center
+                text-sm
+                font-bold
+                text-slate-700
+                border
+                border-slate-200
+                whitespace-nowrap
+              "
+            >
+              Delete
+            </th>
+          )}
+        </tr>
+      </thead>
+
+      {/* BODY */}
+      <tbody>
+        {rows.length ===
+          0 && !isLoading ? (
+          <tr>
+            <td
+              colSpan={
+                editMode
+                  ? 4
+                  : 3
+              }
+              className="
+                py-10
+                text-center
+                text-slate-400
+                text-sm
+                border
+                border-slate-200
+              "
+            >
+              No downtime data
+            </td>
+          </tr>
+        ) : isLoading ? (
+          <tr>
+            <td
+              colSpan={
+                editMode
+                  ? 4
+                  : 3
+              }
+              className="
+                py-10
+                text-center
+                text-slate-400
+                text-sm
+                border
+                border-slate-200
+              "
+            >
+              Loading downtime data...
+            </td>
+          </tr>
+        ) : (
+          rows.map(
+            (
+              row,
+              index
+            ) => (
+              <tr
+                key={index}
                 className="
-                  px-5
-                  py-4
-                  text-left
-                  text-sm
-                  font-bold
-                  text-slate-700
-                  border-b
-                  border-slate-200
+              
+                  transition-colors
                 "
               >
-                Type
-              </th>
-
-              <th
-                className="
-                  px-5
-                  py-4
-                  text-left
-                  text-sm
-                  font-bold
-                  text-slate-700
-                  border-b
-                  border-slate-200
-                "
-              >
-                Details
-              </th>
-
-              <th
-                className="
-                  px-5
-                  py-4
-                  text-left
-                  text-sm
-                  font-bold
-                  text-slate-700
-                  border-b
-                  border-slate-200
-                "
-              >
-                Time
-              </th>
-
-              {editMode && (
-                <th
+                {/* TYPE */}
+                <td
                   className="
                     px-5
                     py-4
-                    text-center
                     text-sm
-                    font-bold
+                    font-semibold
                     text-slate-700
-                    border-b
+                    border
                     border-slate-200
+                    whitespace-nowrap
                   "
                 >
-                  Delete
-                </th>
-              )}
-            </tr>
-          </thead>
+                  {row.downtime_type ||
+                    row.type}
+                </td>
 
-          <tbody>
-            {rows.length ===
-              0 && !isLoading ? (
-              <tr>
+                {/* DETAILS */}
                 <td
-                  colSpan={
-                    editMode
-                      ? 4
-                      : 3
-                  }
                   className="
-                    py-10
-                    text-center
-                    text-slate-400
+                    px-5
+                    py-4
                     text-sm
+                    text-slate-600
+                    border
+                    border-slate-200
+                    min-w-[250px]
                   "
                 >
-                  No downtime data
+                  {row.details}
                 </td>
-              </tr>
-            ) : isLoading ? (
-              <tr>
+
+                {/* TIME */}
                 <td
-                  colSpan={
-                    editMode
-                      ? 4
-                      : 3
-                  }
                   className="
-                    py-10
-                    text-center
-                    text-slate-400
-                    text-sm
+                    px-5
+                    py-4
+                    border
+                    border-slate-200
+                    whitespace-nowrap
                   "
                 >
-                  Loading downtime data...
-                </td>
-              </tr>
-            ) : (
-              rows.map(
-                (
-                  row,
-                  index
-                ) => (
-                  <tr
-                    key={index}
+                  <span
                     className="
-                      border-b
-                      border-slate-100
+                      inline-flex
+                      items-center
+                      px-3
+                      py-1.5
+                      rounded-full
+                      text-xs
+                      font-semibold
+                      bg-blue-100
+                      text-[#1D60AB]
                     "
                   >
-                    {/* TYPE */}
-                    <td
-                      className="
-                        px-5
-                        py-4
-                        text-sm
-                        font-semibold
-                        text-slate-700
-                      "
-                    >
-                      {row.downtime_type || row.type}
-                    </td>
+                    {(row.time_type ||
+                      row.timeType) ===
+                    "fixed"
+                      ? row.fixed_minutes !=
+                        null
+                        ? `${row.fixed_minutes} min`
+                        : row.fixedTime
+                      : "Variable"}
+                  </span>
+                </td>
 
-                    {/* DETAILS */}
-                    <td
-                      className="
-                        px-5
-                        py-4
-                        text-sm
-                        text-slate-600
-                      "
-                    >
-                      {
-                        row.details
+                {/* DELETE */}
+                {editMode && (
+                  <td
+                    className="
+                      px-5
+                      py-4
+                      text-center
+                      border
+                      border-slate-200
+                    "
+                  >
+                    <button
+                      onClick={() =>
+                        handleDelete(
+                          index
+                        )
                       }
-                    </td>
-
-                    {/* TIME */}
-                    <td
                       className="
-                        px-5
-                        py-4
+                        w-8
+                        h-8
+                        rounded-full
+                        bg-red-500
+                        text-white
+                        inline-flex
+                        items-center
+                        justify-center
+                        hover:bg-red-600
+                        transition-all
                       "
                     >
-                      <span
-                        className="
-                          inline-flex
-                          items-center
-                          px-3
-                          py-1.5
-                          rounded-full
-                          text-xs
-                          font-semibold
-                          bg-blue-100
-                          text-[#1D60AB]
-                        "
-                      >
-                        {(row.time_type || row.timeType) ===
-                        "fixed"
-                          ? row.fixed_minutes != null
-                            ? `${row.fixed_minutes} min`
-                            : row.fixedTime
-                          : "Variable"}
-                      </span>
-                    </td>
-
-                    {/* DELETE */}
-                    {editMode && (
-                      <td className="px-5 py-4 text-center">
-                        <button
-                          onClick={() =>
-                            handleDelete(
-                              index
-                            )
-                          }
-                          className="
-                            w-8
-                            h-8
-                            rounded-full
-                            bg-red-500
-                            text-white
-                            inline-flex
-                            items-center
-                            justify-center
-                          "
-                        >
-                          <X
-                            size={
-                              14
-                            }
-                          />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                )
-              )
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+                      <X
+                        size={14}
+                      />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            )
+          )
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
+  </div>
+);
 }

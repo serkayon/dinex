@@ -168,107 +168,65 @@ export default function ManPower() {
     setCount("");
   };
 
-  return (
+return (
+  <div
+    className="
+      bg-white
+      rounded-[24px]
+      p-4
+      md:p-5
+      shadow-[0_2px_10px_rgba(15,23,42,0.05)]
+      mt-6
+    "
+  >
+    {/* HEADER */}
     <div
       className="
-        bg-white
-        rounded-[28px]
-        p-5
-        md:p-6
-        shadow-[0_2px_10px_rgba(15,23,42,0.05)]
-        mt-6
+        flex
+        flex-col
+        lg:flex-row
+        lg:items-start
+        lg:justify-between
+        gap-4
+        mb-6
       "
     >
-      {/* =========================
-          HEADER
-      ========================= */}
-
-      <div
-        className="
-          flex
-          items-center
-          justify-between
-          gap-4
-          mb-6
-        "
-      >
-        <div>
-          <h2
-            className="
-              text-[24px]
-              md:text-[28px]
-              font-bold
-              text-[#0f172a]
-            "
-          >
-            Man Power
-          </h2>
-
-          <p
-            className="
-              text-slate-500
-              text-sm
-              mt-1
-            "
-          >
-            Configure manpower count
-          </p>
-        </div>
-
-        {/* EDIT MODE */}
-        <button
-          onClick={() =>
-            setEditMode(
-              !editMode
-            )
-          }
-          className={`
-            h-[46px]
-            px-5
-            rounded-[14px]
-            flex
-            items-center
-            gap-2
-            font-semibold
-            transition-all
-            ${
-              editMode
-                ? "bg-red-100 text-red-600"
-                : "bg-blue-100 text-[#1D60AB]"
-            }
-          `}
+      {/* LEFT */}
+      <div className="flex-1">
+        <h2
+          className="
+            text-[24px]
+            md:text-[28px]
+            font-bold
+            text-[#0f172a]
+          "
         >
-          <Pencil size={18} />
+          Man Power
+        </h2>
 
-          {editMode
-            ? "Exit Edit"
-            : "Edit Mode"}
-        </button>
-      </div>
+        <p
+          className="
+            text-slate-500
+            text-sm
+            mt-1
+          "
+        >
+          Configure manpower count
+        </p>
 
-      {/* =========================
-          FORM CARD
-      ========================= */}
-
-      <div
-        className="
-          bg-[#f8fafc]
-          rounded-[24px]
-          p-5
-          border
-          border-slate-200
-        "
-      >
+        {/* INPUT SECTION */}
         <div
           className="
-            grid
-            grid-cols-1
-            lg:grid-cols-2
+            mt-5
+            flex
+            flex-col
+            xl:flex-row
+            xl:items-end
             gap-4
           "
         >
-          {/* COUNT */}
-          <div>
+          {/* INPUT */}
+          <div className="flex-1">
             <label
               className="
                 text-sm
@@ -299,8 +257,8 @@ export default function ManPower() {
               }
               className="
                 w-full
-                h-[52px]
-                rounded-[16px]
+                h-[46px]
+                rounded-[14px]
                 border
                 border-slate-300
                 px-4
@@ -313,73 +271,166 @@ export default function ManPower() {
               "
             />
           </div>
-        </div>
 
-        {/* BUTTONS */}
-        <div
-          className="
-            flex
-            flex-col
-            sm:flex-row
-            gap-3
-            mt-6
-          "
-        >
-          {/* SAVE */}
-          <button
-            onClick={
-              handleSave
-            }
-            disabled={isSaving}
+          {/* BUTTONS */}
+          <div
             className="
-              sm:w-[180px]
-              h-[52px]
-              rounded-[16px]
-              bg-[#1D60AB]
-              hover:bg-[#164f90]
-              text-white
-              font-semibold
-              shadow-md
-              transition-all
-              disabled:opacity-60
+              flex
+              flex-col
+              sm:flex-row
+              gap-3
             "
           >
-            {isSaving
-              ? "Saving..."
-              : "Save"}
-          </button>
+            {/* SAVE */}
+            <button
+              onClick={
+                handleSave
+              }
+              disabled={isSaving}
+              className="
+                w-full
+                sm:w-[120px]
+                h-[44px]
+                rounded-[14px]
+                bg-[#1D60AB]
+                hover:bg-[#164f90]
+                text-white
+                font-semibold
+                shadow-md
+                transition-all
+                disabled:opacity-60
+              "
+            >
+              {isSaving
+                ? "Saving..."
+                : "Save"}
+            </button>
 
-          {/* CLEAR */}
-          <button
-            onClick={
-              handleClear
-            }
-            className="
-              sm:w-[180px]
-              h-[52px]
-              rounded-[16px]
-              bg-slate-200
-              hover:bg-slate-300
-              text-slate-700
-              font-semibold
-              transition-all
-            "
-          >
-            Clear
-          </button>
+            {/* CLEAR */}
+            <button
+              onClick={
+                handleClear
+              }
+              className="
+                w-full
+                sm:w-[120px]
+                h-[44px]
+                rounded-[14px]
+                bg-slate-200
+                hover:bg-slate-300
+                text-slate-700
+                font-semibold
+                transition-all
+              "
+            >
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* =========================
-          COUNT BOXES
-      ========================= */}
+      {/* EDIT MODE */}
+      <button
+        onClick={() =>
+          setEditMode(!editMode)
+        }
+        className={`
+          h-[44px]
+          px-4
+          rounded-[14px]
+          flex
+          items-center
+          justify-center
+          gap-2
+          font-semibold
+          transition-all
+          shrink-0
+          ${
+            editMode
+              ? "bg-red-100 text-red-600"
+              : "bg-blue-100 text-[#1D60AB]"
+          }
+        `}
+      >
+        <Pencil size={17} />
 
+        {editMode
+          ? "Exit Edit"
+          : "Edit Mode"}
+      </button>
+    </div>
+
+    {/* MANPOWER LIST */}
+    <div
+      className="
+        border
+        border-slate-200
+        rounded-[22px]
+        bg-[#f8fafc]
+        p-4
+        h-[520px]
+        flex
+        flex-col
+        overflow-hidden
+        w-full
+      "
+    >
+      {/* TOP */}
       <div
         className="
           flex
-          flex-wrap
+          items-center
+          justify-between
           gap-3
-          mt-5
+          mb-4
+          shrink-0
+        "
+      >
+        <div>
+          <h3
+            className="
+              text-[18px]
+              font-bold
+              text-slate-800
+            "
+          >
+            Man Power List
+          </h3>
+
+          <p
+            className="
+              text-sm
+              text-slate-500
+              mt-1
+            "
+          >
+            Assigned manpower counts
+          </p>
+        </div>
+
+        <div
+          className="
+            text-sm
+            font-semibold
+            text-[#1D60AB]
+            bg-blue-100
+            px-3
+            py-1
+            rounded-full
+            shrink-0
+          "
+        >
+          {manpower.length}
+        </div>
+      </div>
+
+      {/* SCROLL AREA */}
+      <div
+        className="
+          flex-1
+          overflow-y-auto
+          custom-scrollbar
+          pr-2
         "
       >
         {isLoading && (
@@ -388,67 +439,134 @@ export default function ManPower() {
           </p>
         )}
 
-        {manpower.map(
-          (item, index) => (
-            <div
-              key={index}
-              className="
-                relative
-                min-w-[90px]
-                bg-[#edf4ff]
-                border
-                border-[#c7dcff]
-                rounded-[16px]
-                px-5
-                py-4
-                shadow-sm
-                text-center
-              "
-            >
-              {/* DELETE */}
-              {editMode && (
-                <button
-                  onClick={() =>
-                    handleDelete(
-                      index
-                    )
-                  }
-                  className="
-                    absolute
-                    -top-2
-                    -right-2
-                    w-6
-                    h-6
-                    rounded-full
-                    bg-red-500
-                    text-white
-                    flex
-                    items-center
-                    justify-center
-                    shadow-md
-                  "
-                >
-                  <X
-                    size={12}
-                  />
-                </button>
-              )}
-
-              {/* COUNT */}
-              <h3
+        {/* GRID */}
+        <div
+          className="
+            grid
+            grid-cols-1
+            sm:grid-cols-2
+            md:grid-cols-3
+            xl:grid-cols-4
+            gap-4
+            auto-rows-max
+          "
+        >
+          {manpower.map(
+            (item, index) => (
+              <div
+                key={index}
                 className="
-                  text-[26px]
-                  font-bold
-                  text-[#1D60AB]
-                  leading-none
+                  relative
+                  bg-white
+                  border
+                  border-slate-200
+                  rounded-[18px]
+                  p-4
+                  shadow-sm
+                  hover:shadow-md
+                  transition-all
+                  min-h-[120px]
+                  flex
+                  flex-col
+                  justify-between
                 "
               >
-                {item.count}
-              </h3>
-            </div>
-          )
-        )}
+                {/* DELETE */}
+                {editMode && (
+                  <button
+                    onClick={() =>
+                      handleDelete(
+                        index
+                      )
+                    }
+                    className="
+                      absolute
+                      top-3
+                      right-3
+                      w-7
+                      h-7
+                      rounded-full
+                      bg-red-500
+                      hover:bg-red-600
+                      text-white
+                      flex
+                      items-center
+                      justify-center
+                      shadow-md
+                      transition-all
+                    "
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+
+                {/* CONTENT */}
+                <div>
+                  <div
+                    className="
+                      w-12
+                      h-12
+                      rounded-[14px]
+                      bg-blue-100
+                      flex
+                      items-center
+                      justify-center
+                      mb-4
+                    "
+                  >
+                    <Users
+                      size={22}
+                      className="text-[#1D60AB]"
+                    />
+                  </div>
+
+                  <p
+                    className="
+                      text-sm
+                      text-slate-500
+                      font-medium
+                    "
+                  >
+                    Man Power
+                  </p>
+
+                  <h3
+                    className="
+                      text-[28px]
+                      font-bold
+                      text-[#1D60AB]
+                      mt-1
+                      leading-none
+                    "
+                  >
+                    {item.count}
+                  </h3>
+                </div>
+
+                {/* FOOTER */}
+                <div
+                  className="
+                    mt-4
+                    pt-3
+                    border-t
+                    border-slate-100
+                  "
+                >
+                  <p
+                    className="
+                      text-[12px]
+                      text-slate-400
+                    "
+                  >
+                    Assigned manpower count
+                  </p>
+                </div>
+              </div>
+            )
+          )}
+        </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

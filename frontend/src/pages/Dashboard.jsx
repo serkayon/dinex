@@ -173,7 +173,6 @@ export default function Dashboard() {
         rework,
         reject,
         oee: `${rowProgress.toFixed(1)}%`,
-        availability: `${shiftProgress.toFixed(1)}%`,
         dot: rowProgress >= 85 ? "bg-green-500" : rowProgress >= 60 ? "bg-amber-500" : "bg-rose-500",
         pill: rowProgress >= 85 ? "bg-[#eaf8ed] text-[#166534]" : rowProgress >= 60 ? "bg-[#fff3e5] text-[#9a3412]" : "bg-[#ffecef] text-[#be123c]",
       };
@@ -258,6 +257,30 @@ export default function Dashboard() {
     const current = currentRaw < start ? currentRaw + 24 * 60 : currentRaw;
     if (current >= end) return "completed";
     return "running";
+  };
+
+  const getSplitAvailabilityPercent = (hourRange = "") => {
+    if (!hasBatch || !hourRange.includes(" - ")) return 0;
+    const [from, to] = hourRange.split(" - ").map((v) => v.trim());
+    const startAbs = toMinutes(from);
+    const endAbs = toMinutes(to);
+    const shiftStartAbs = getShiftStartMinutes();
+
+    const start = toShiftOffset(startAbs, shiftStartAbs);
+    let end = toShiftOffset(endAbs, shiftStartAbs);
+    if (end <= start) end += 24 * 60;
+
+    const total = Math.max(1, end - start);
+    const nowDate = new Date(now);
+    const currentRaw = toShiftOffset(nowDate.getHours() * 60 + nowDate.getMinutes(), shiftStartAbs);
+    if (currentRaw < start) return 0;
+
+    const current = currentRaw < start ? currentRaw + 24 * 60 : currentRaw;
+
+    if (current <= start) return 0;
+    if (current >= end) return 100;
+
+    return Math.max(0, Math.min(100, ((current - start) / total) * 100));
   };
 
   const splitDurationMinutes = (hourRange = "") => {
@@ -379,7 +402,6 @@ export default function Dashboard() {
     const runCycle = async () => {
       if (stopped) return;
       try {
-        await fetch(`${apiBaseUrl}/batches/${currentBatch.id}/machine-cycle`, { method: "POST" });
         await fetchLiveSummary();
       } catch (_) {
       } finally {
@@ -626,6 +648,7 @@ export default function Dashboard() {
                   {splitLiveRows.map((row) => {
                     const splitStatus = getSplitStatus(row.hour);
                     const running = splitStatus === "running";
+                    const splitAvailability = getSplitAvailabilityPercent(row.hour);
                     const autoBreakAssigned = splitBreakMinutes(row.hour);
                     const manualAssigned = splitAssignedDowntimeMap.get(Number(row.splitNo)) || 0;
                     const totalAssigned = manualAssigned + autoBreakAssigned;
@@ -662,7 +685,7 @@ export default function Dashboard() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="inline-flex items-center gap-3 text-[18px] font-semibold text-[#1f2937]">
-                            <span>{row.availability}</span>
+                            <span>{splitAvailability.toFixed(1)}%</span>
                             <span className={`w-3 h-3 rounded-full ${running ? "bg-[#2563eb]" : row.dot}`} />
                           </div>
                         </td>

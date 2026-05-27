@@ -1,5 +1,9 @@
 import sqlite3
 import random
+import threading
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -9,6 +13,7 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "dinex.db"
+APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Kolkata")
 
 
 class PersonCreate(BaseModel):
@@ -519,6 +524,16 @@ def init_db() -> None:
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    global _auto_cycle_thread
+    if _auto_cycle_thread is None or not _auto_cycle_thread.is_alive():
+        _auto_cycle_stop_event.clear()
+        _auto_cycle_thread = threading.Thread(target=_auto_cycle_worker, daemon=True)
+        _auto_cycle_thread.start()
+
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    _auto_cycle_stop_event.set()
 
 
 @app.get("/health")
@@ -1117,6 +1132,123 @@ def _is_within_split(now_minutes: int, split_start: int, split_end: int) -> bool
     return True
 
 
+def _get_current_clock_minutes() -> int:
+    try:
+        current = datetime.now(ZoneInfo(APP_TIMEZONE))
+    except Exception:
+        current = datetime.now()
+    return current.hour * 60 + current.minute
+
+
+def _pick_part_result() -> str:
+    roll = random.random()
+    if roll < 0.7:
+        return "ok"
+    if roll < 0.9:
+        return "rework"
+    return "reject"
+
+
+def _get_active_split_for_now(conn: sqlite3.Connection, batch_id: int) -> sqlite3.Row | None:
+    split_rows = conn.execute(
+        """
+        SELECT split_no, from_time, to_time, model_id, cycle_time_seconds
+        FROM batch_splits
+        WHERE batch_id = ?
+        ORDER BY split_no ASC
+        """,
+        (batch_id,),
+    ).fetchall()
+    if not split_rows:
+        return None
+
+    now_minutes = _get_current_clock_minutes()
+
+    for split in split_rows:
+        start_minutes = _to_minutes(split["from_time"])
+        end_minutes = _to_minutes(split["to_time"])
+        if _is_within_split(now_minutes, start_minutes, end_minutes):
+            return split
+
+    return split_rows[0]
+
+
+def _insert_batch_parts(conn: sqlite3.Connection, batch_id: int, split_no: int, model_id: str, count: int) -> None:
+    if count <= 0:
+        return
+    conn.executemany(
+        """
+        INSERT INTO batch_parts (batch_id, split_no, model_id, result)
+        VALUES (?, ?, ?, ?)
+        """,
+        [(batch_id, split_no, model_id, _pick_part_result()) for _ in range(count)],
+    )
+
+
+def _run_auto_cycle_tick() -> None:
+    with get_connection() as conn:
+        batch_row = conn.execute(
+            "SELECT id, started_at FROM batches WHERE status = 'active' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if not batch_row:
+            return
+
+        batch_id = int(batch_row["id"])
+        active_split = _get_active_split_for_now(conn, batch_id)
+        if not active_split:
+            return
+
+        cycle_seconds = max(1.0, float(active_split["cycle_time_seconds"] or 1.0))
+
+        last_part_row = conn.execute(
+            """
+            SELECT CAST(strftime('%s', MAX(produced_at)) AS INTEGER) AS last_epoch
+            FROM batch_parts
+            WHERE batch_id = ? AND split_no = ?
+            """,
+            (batch_id, int(active_split["split_no"])),
+        ).fetchone()
+        base_epoch_row = conn.execute(
+            "SELECT CAST(strftime('%s', ?) AS INTEGER) AS started_epoch",
+            (batch_row["started_at"],),
+        ).fetchone()
+        now_epoch_row = conn.execute(
+            "SELECT CAST(strftime('%s', 'now') AS INTEGER) AS now_epoch"
+        ).fetchone()
+
+        started_epoch = int(base_epoch_row["started_epoch"] or 0)
+        last_epoch = int(last_part_row["last_epoch"] or started_epoch)
+        now_epoch = int(now_epoch_row["now_epoch"] or 0)
+
+        elapsed_seconds = max(0, now_epoch - last_epoch)
+        due_parts = int(elapsed_seconds // cycle_seconds)
+        if due_parts <= 0:
+            return
+
+        due_parts = min(due_parts, 200)
+        _insert_batch_parts(
+            conn,
+            batch_id=batch_id,
+            split_no=int(active_split["split_no"]),
+            model_id=active_split["model_id"],
+            count=due_parts,
+        )
+        conn.commit()
+
+
+_auto_cycle_stop_event = threading.Event()
+_auto_cycle_thread: threading.Thread | None = None
+
+
+def _auto_cycle_worker() -> None:
+    while not _auto_cycle_stop_event.is_set():
+        try:
+            _run_auto_cycle_tick()
+        except Exception:
+            pass
+        _auto_cycle_stop_event.wait(2.0)
+
+
 def _build_live_summary(conn: sqlite3.Connection, batch_id: int) -> BatchLiveSummaryResponse:
     split_rows = conn.execute(
         """
@@ -1323,41 +1455,11 @@ def machine_cycle(batch_id: int) -> MachineCycleResponse:
         if batch_row["status"] != "active":
             raise HTTPException(status_code=409, detail="Batch is not active")
 
-        split_rows = conn.execute(
-            """
-            SELECT split_no, from_time, to_time, model_id
-            FROM batch_splits
-            WHERE batch_id = ?
-            ORDER BY split_no ASC
-            """,
-            (batch_id,),
-        ).fetchall()
-        if not split_rows:
+        active_split = _get_active_split_for_now(conn, batch_id)
+        if not active_split:
             raise HTTPException(status_code=400, detail="No split rows found for batch")
 
-        now_row = conn.execute(
-            "SELECT CAST(strftime('%H', 'now', 'localtime') AS INTEGER) AS h, CAST(strftime('%M', 'now', 'localtime') AS INTEGER) AS m"
-        ).fetchone()
-        now_minutes = int(now_row["h"]) * 60 + int(now_row["m"])
-
-        active_split = None
-        for split in split_rows:
-            start_minutes = _to_minutes(split["from_time"])
-            end_minutes = _to_minutes(split["to_time"])
-            if _is_within_split(now_minutes, start_minutes, end_minutes):
-                active_split = split
-                break
-
-        if not active_split:
-            active_split = split_rows[0]
-
-        roll = random.random()
-        if roll < 0.7:
-            result = "ok"
-        elif roll < 0.9:
-            result = "rework"
-        else:
-            result = "reject"
+        result = _pick_part_result()
 
         cursor = conn.execute(
             """
