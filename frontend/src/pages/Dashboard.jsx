@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import useAppStore from "../store/useAppStore";
 import toast from "react-hot-toast";
+import useServerNow from "../hooks/useServerNow";
 
 const summaryItems = [
   { label: "Planned Production Time", icon: TimerReset, valueColor: "text-black", iconColor: "text-[#2563eb]" },
@@ -58,7 +59,6 @@ const formatDuration = (totalSeconds) => {
 
 export default function Dashboard() {
   const { currentBatch, batchStarted, splitRows: batchSplitRows } = useAppStore();
-  const [now, setNow] = useState(Date.now());
   const [liveSummary, setLiveSummary] = useState({
     produced: 0,
     ok: 0,
@@ -72,55 +72,44 @@ export default function Dashboard() {
   const [pendingModal, setPendingModal] = useState({ open: false, splitNo: null, splitLabel: "" });
   const [pendingForm, setPendingForm] = useState({ downtimeType: "", otherType: "", durationMinutes: "", notes: "" });
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const plantTimeZone = import.meta.env.VITE_PLANT_TIMEZONE || "Asia/Kolkata";
 
   const hasBatch = batchStarted && currentBatch;
+  const now = useServerNow(apiBaseUrl, hasBatch);
+  const clockFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: plantTimeZone,
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    [plantTimeZone]
+  );
 
   const shiftLabel = currentBatch?.shiftTime || "-";
   const activeRows = hasBatch ? batchSplitRows : [];
   const shiftTarget = activeRows.reduce((sum, row) => sum + (Number(row.target) || 0), 0);
   const runningModel = activeRows.find((row) => row.model && row.model !== "-")?.model || "-";
 
-  useEffect(() => {
-    if (!hasBatch) return undefined;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [hasBatch]);
-
   const { shiftProgress, remainingSeconds, elapsedSeconds, totalSeconds } = useMemo(() => {
     if (!hasBatch || !currentBatch?.shift) {
       return { shiftProgress: 0, remainingSeconds: 0, elapsedSeconds: 0, totalSeconds: 0 };
     }
-    const nowDate = new Date(now);
     const startHour = Number(currentBatch.shift.start || 0);
     const endHour = Number(currentBatch.shift.end || 0);
-    const startH = Math.floor(startHour);
-    const startM = Math.round((startHour % 1) * 60);
-    const endH = Math.floor(endHour);
-    const endM = Math.round((endHour % 1) * 60);
+    const startSeconds = Math.round(startHour * 3600);
+    const endSeconds = Math.round(endHour * 3600);
+    const total = ((endSeconds - startSeconds + 86400) % 86400) || 86400;
 
-    const start = new Date(nowDate);
-    start.setHours(startH, startM, 0, 0);
-    const end = new Date(nowDate);
-    end.setHours(endH, endM, 0, 0);
+    const nowParts = clockFormatter.formatToParts(new Date(now));
+    const h = Number(nowParts.find((part) => part.type === "hour")?.value || 0);
+    const m = Number(nowParts.find((part) => part.type === "minute")?.value || 0);
+    const s = Number(nowParts.find((part) => part.type === "second")?.value || 0);
+    const currentSeconds = h * 3600 + m * 60 + s;
 
-    if (end <= start) {
-      if (nowDate >= start) {
-        end.setDate(end.getDate() + 1);
-      } else {
-        start.setDate(start.getDate() - 1);
-      }
-    } else {
-      if (nowDate < start) {
-        start.setDate(start.getDate() - 1);
-        end.setDate(end.getDate() - 1);
-      } else if (nowDate > end) {
-        start.setDate(start.getDate() + 1);
-        end.setDate(end.getDate() + 1);
-      }
-    }
-
-    const total = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 1000));
-    const elapsedRaw = Math.floor((nowDate.getTime() - start.getTime()) / 1000);
+    const elapsedRaw = (currentSeconds - startSeconds + 86400) % 86400;
     const elapsed = Math.max(0, Math.min(total, elapsedRaw));
     const remaining = Math.max(0, total - elapsed);
     return {
@@ -129,7 +118,7 @@ export default function Dashboard() {
       elapsedSeconds: elapsed,
       totalSeconds: total,
     };
-  }, [hasBatch, currentBatch, now]);
+  }, [hasBatch, currentBatch, now, clockFormatter]);
 
   const splitLiveRows = useMemo(() => {
     if (!hasBatch || !Array.isArray(currentBatch?.splitPlan)) return [];
@@ -239,6 +228,13 @@ export default function Dashboard() {
   const toShiftOffset = (absoluteMinutes, anchorMinutes) =>
     (absoluteMinutes - anchorMinutes + 1440) % 1440;
 
+  const getNowClockMinutes = () => {
+    const parts = clockFormatter.formatToParts(new Date(now));
+    const h = Number(parts.find((part) => part.type === "hour")?.value || 0);
+    const m = Number(parts.find((part) => part.type === "minute")?.value || 0);
+    return h * 60 + m;
+  };
+
   const getSplitStatus = (hourRange = "") => {
     if (!hasBatch || !hourRange.includes(" - ")) return "future";
     const [from, to] = hourRange.split(" - ").map((v) => v.trim());
@@ -250,8 +246,7 @@ export default function Dashboard() {
     let end = toShiftOffset(endAbs, shiftStartAbs);
     if (end <= start) end += 24 * 60;
 
-    const nowDate = new Date(now);
-    const currentRaw = toShiftOffset(nowDate.getHours() * 60 + nowDate.getMinutes(), shiftStartAbs);
+    const currentRaw = toShiftOffset(getNowClockMinutes(), shiftStartAbs);
     if (currentRaw < start) return "future";
 
     const current = currentRaw < start ? currentRaw + 24 * 60 : currentRaw;
@@ -271,11 +266,10 @@ export default function Dashboard() {
     if (end <= start) end += 24 * 60;
 
     const total = Math.max(1, end - start);
-    const nowDate = new Date(now);
-    const currentRaw = toShiftOffset(nowDate.getHours() * 60 + nowDate.getMinutes(), shiftStartAbs);
-    if (currentRaw < start) return 0;
+    const currentRaw = toShiftOffset(getNowClockMinutes(), shiftStartAbs);
 
-    const current = currentRaw < start ? currentRaw + 24 * 60 : currentRaw;
+    let current = currentRaw;
+    if (current < start) current += 24 * 60;
 
     if (current <= start) return 0;
     if (current >= end) return 100;
@@ -364,8 +358,7 @@ export default function Dashboard() {
 
   const currentCycleMs = useMemo(() => {
     if (!hasBatch || !Array.isArray(currentBatch?.splitPlan)) return 10000;
-    const nowDate = new Date(now);
-    const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes();
+    const nowMinutes = getNowClockMinutes();
     const activeSplit = currentBatch.splitPlan.find((row) => {
       const start = toMinutes(row.from);
       const end = toMinutes(row.to);
@@ -375,7 +368,7 @@ export default function Dashboard() {
     }) || currentBatch.splitPlan[0];
     const cycleSeconds = Math.max(1, Number(activeSplit?.cycleTimeSeconds) || 1);
     return cycleSeconds * 1000;
-  }, [hasBatch, currentBatch, now]);
+  }, [hasBatch, currentBatch, now, clockFormatter]);
 
   useEffect(() => {
     if (!hasBatch || !currentBatch?.id) {
@@ -774,7 +767,7 @@ export default function Dashboard() {
                 {`${displayProgress.toFixed(1)}%`}
               </div>
             </div>
-            <div className="text-center text-[56px] leading-none font-semibold mt-6">{(liveTotals.ok + liveTotals.rework + liveTotals.reject).toLocaleString()}</div>
+            <div className="text-center text-[120px] leading-none font-semibold mt-6">{(liveTotals.ok + liveTotals.rework + liveTotals.reject).toLocaleString()}</div>
           </div>
 
           <div className="bg-white rounded-[22px] p-4 shadow-sm border border-[#e7edf5]">

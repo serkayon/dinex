@@ -15,6 +15,7 @@ import dinex from "../assets/dinex.png";
 
 import StartBatchModal from "../modals/StartBatchModal";
 import EndBatchModal from "../modals/EndBatchModal";
+import useServerNow from "../hooks/useServerNow";
 export default function Topbar() {
   const {
     batchStarted = false,
@@ -28,19 +29,26 @@ const [openEnd, setOpenEnd] =
   useState(false);
 const [openEndConfirm, setOpenEndConfirm] =
   useState(false);
-const [now, setNow] = useState(Date.now());
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const plantTimeZone = import.meta.env.VITE_PLANT_TIMEZONE || "Asia/Kolkata";
+const now = useServerNow(apiBaseUrl, batchStarted);
+const clockFormatter = useMemo(
+  () =>
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: plantTimeZone,
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+  [plantTimeZone]
+);
 
   useEffect(() => {
     hydrateCurrentBatch().catch(
       () => {}
     );
   }, [hydrateCurrentBatch]);
-
-  useEffect(() => {
-    if (!batchStarted) return undefined;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [batchStarted]);
 
   const remainingSeconds =
     useMemo(() => {
@@ -51,55 +59,64 @@ const [now, setNow] = useState(Date.now());
         return 0;
       }
 
-      const nowDate =
-        new Date(now);
       const startHour = Number(
         currentBatch.shift.start || 0
       );
       const endHour = Number(
         currentBatch.shift.end || 0
       );
+      const startSeconds = Math.round(startHour * 3600);
+      const endSeconds = Math.round(endHour * 3600);
+      const totalSeconds = ((endSeconds - startSeconds + 86400) % 86400) || 86400;
 
-      const start = new Date(nowDate);
-      const end = new Date(nowDate);
-      start.setHours(
-        Math.floor(startHour),
-        Math.round(
-          (startHour % 1) * 60
-        ),
-        0,
-        0
+      const nowParts =
+        clockFormatter.formatToParts(
+          new Date(now)
+        );
+      const h = Number(
+        nowParts.find(
+          (part) =>
+            part.type === "hour"
+        )?.value || 0
       );
-      end.setHours(
-        Math.floor(endHour),
-        Math.round(
-          (endHour % 1) * 60
-        ),
-        0,
-        0
+      const m = Number(
+        nowParts.find(
+          (part) =>
+            part.type === "minute"
+        )?.value || 0
       );
-
-      if (end <= start) {
-        if (nowDate >= start) {
-          end.setDate(
-            end.getDate() + 1
-          );
-        } else {
-          start.setDate(
-            start.getDate() - 1
-          );
-        }
-      }
+      const s = Number(
+        nowParts.find(
+          (part) =>
+            part.type === "second"
+        )?.value || 0
+      );
+      const currentSeconds =
+        h * 3600 + m * 60 + s;
+      const elapsedSeconds =
+        (currentSeconds -
+          startSeconds +
+          86400) %
+        86400;
+      const clampedElapsed =
+        Math.max(
+          0,
+          Math.min(
+            totalSeconds,
+            elapsedSeconds
+          )
+        );
 
       return Math.max(
         0,
-        Math.floor(
-          (end.getTime() -
-            nowDate.getTime()) /
-            1000
-        )
+        totalSeconds - clampedElapsed
       );
-    }, [batchStarted, currentBatch, now]);
+    }, [
+      batchStarted,
+      currentBatch,
+      now,
+      clockFormatter,
+    ]);
 
   const formatDuration = (
     totalSeconds
