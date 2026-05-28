@@ -2,7 +2,7 @@ import sqlite3
 import random
 import threading
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
@@ -14,6 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "dinex.db"
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Kolkata")
+IST_FALLBACK_TZ = timezone(timedelta(hours=5, minutes=30))
 
 
 class PersonCreate(BaseModel):
@@ -1136,7 +1137,8 @@ def _get_current_clock_minutes() -> int:
     try:
         current = datetime.now(ZoneInfo(APP_TIMEZONE))
     except Exception:
-        current = datetime.now()
+        # Never fall back to VM local timezone; keep split mapping stable.
+        current = datetime.now(IST_FALLBACK_TZ)
     return current.hour * 60 + current.minute
 
 

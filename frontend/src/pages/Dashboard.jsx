@@ -330,6 +330,9 @@ export default function Dashboard() {
     return Math.max(0, Math.min(netDuration, Math.round(utilized)));
   };
 
+  const splitEffectiveMinutes = (hourRange = "") =>
+    Math.max(0, splitDurationMinutes(hourRange) - splitBreakMinutes(hourRange));
+
   const splitBreakMap = useMemo(() => {
     const map = new Map();
     if (!Array.isArray(splitLiveRows) || !Array.isArray(activeShiftBreaks)) return map;
@@ -627,10 +630,10 @@ export default function Dashboard() {
           <div className="bg-white rounded-[24px] p-4 shadow-sm border border-[#e7edf5] overflow-auto">
             {/* <h2 className="text-[24px] md:text-[26px] font-bold text-[#09123f] mb-4">8 Hours Split View ({shiftLabel})</h2> */}
             <div className="overflow-hidden rounded-[16px] border border-[#e8edf5]">
-              <table className="w-full min-w-[980px] border-collapse">
+              <table className="w-full min-w-[1080px] border-collapse">
                 <thead>
                   <tr className="bg-[#f7f9fe]">
-                    {["Hour", "Target", "Model", "Actual", "OK Parts", "Rework", "Reject", "OEE", "Availability", "Pending Reason"].map((head) => (
+                    {["Hour", "Effective Time", "Target", "Model", "Actual", "OK Parts", "Rework", "Reject", "OEE", "Availability", "Pending Reason"].map((head) => (
                       <th key={head} className="px-4 py-3 text-center text-[16px] font-bold text-[#4b5563] border-r border-[#e8edf5] last:border-r-0">
                         {head}
                       </th>
@@ -659,13 +662,11 @@ export default function Dashboard() {
                         key={row.hour}
                         className={`border-t border-[#edf2f7] ${running ? "bg-[#eaf3ff]" : "bg-white"}`}
                       >
-                        <td className="px-4 py-3 text-center text-[18px] font-semibold text-[#1e293b] border-r border-[#edf2f7]">
+                        <td className="px-3 py-3 text-center text-[18px] font-semibold text-[#1e293b] border-r border-[#edf2f7] w-[170px] min-w-[170px]">
                           <p>{row.hour}</p>
-                          {rowBreaks.map((item) => (
-                            <p key={item.id} className="text-[11px] text-[#d97706] font-semibold leading-4">
-                              {item.break_type}: {item.break_start_time} - {item.break_end_time} ({item.duration_minutes}m)
-                            </p>
-                          ))}
+                        </td>
+                        <td className="px-3 py-3 text-center text-[16px] font-semibold text-[#334155] border-r border-[#edf2f7]">
+                          {splitEffectiveMinutes(row.hour)} min
                         </td>
                         <td className="px-4 py-3 text-center text-[18px] font-semibold text-[#334155] border-r border-[#edf2f7]">{row.target}</td>
                         <td className="px-4 py-3 text-center text-[16px] font-semibold text-[#334155] border-r border-[#edf2f7]">{row.model}</td>
@@ -757,17 +758,19 @@ export default function Dashboard() {
         </div>
 
         <div className="xl:col-span-3 space-y-4">
-          <div className="bg-white rounded-[22px] p-4 shadow-sm border border-[#83b960] h-[256px]">
-            <div className="flex items-start justify-between text-[20px] text-slate-900 leading-tight gap-2">
+          <div className="bg-white rounded-[22px] p-4 shadow-sm border border-[#e7edf5] h-[256px]">
+            <div className="flex items-start justify-between text-[16px] font-semibold text-slate-800 leading-tight gap-2">
               <p>{shiftLabel}</p>
-              <p>{hasBatch ? formatDuration(remainingSeconds) : "00:00:00"}</p>
+              <p className="tabular-nums">{hasBatch ? formatDuration(remainingSeconds) : "00:00:00"}</p>
             </div>
-            <div className="mt-3 h-[26px] rounded border border-[#1f3b7a] bg-[#e7eefc] overflow-hidden">
-              <div className="h-full bg-[#3b5ea9] text-white text-center text-[14px] leading-[24px]" style={{ width: `${displayProgress}%` }}>
+            <div className="mt-3 h-[18px] rounded-full border border-[#dbe7ff] bg-[#eef4ff] overflow-hidden">
+              <div className="h-full bg-[#2563eb] text-white text-center text-[11px] leading-[16px] font-semibold" style={{ width: `${displayProgress}%` }}>
                 {`${displayProgress.toFixed(1)}%`}
               </div>
             </div>
-            <div className="text-center text-[120px] leading-none font-semibold mt-6">{(liveTotals.ok + liveTotals.rework + liveTotals.reject).toLocaleString()}</div>
+            <div className="text-center text-[86px] leading-none font-bold text-slate-800 mt-7 tabular-nums">
+              {(liveTotals.ok + liveTotals.rework + liveTotals.reject).toLocaleString()}
+            </div>
           </div>
 
           <div className="bg-white rounded-[22px] p-4 shadow-sm border border-[#e7edf5]">
@@ -778,7 +781,7 @@ export default function Dashboard() {
               <Ring label="Quality" value={quality} color="#7c3aed" />
             </div>
             <div className="mt-4 rounded-[16px] bg-[#edf8ef] py-4 text-center">
-              <p className="text-[16px] text-slate-700 font-semibold">OEE</p>
+              <p className="text-[16px] text-slate-700 font-semibold"></p>
               <h3 className="text-[48px] font-bold text-[#15803d] leading-none">{`${oee.toFixed(1)}%`}</h3>
             </div>
           </div>
